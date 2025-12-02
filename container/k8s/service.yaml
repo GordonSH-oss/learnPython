@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-app-service
+  labels:
+    app: flask-app
+spec:
+  type: NodePort  # 使用 NodePort 类型，可以通过节点IP访问
+  # 如果使用 LoadBalancer（云环境），将 type 改为 LoadBalancer
+  # type: LoadBalancer
+  selector:
+    app: flask-app
+  ports:
+  - protocol: TCP
+    port: 80        # 服务端口
+    targetPort: 5000  # 容器端口
+    nodePort: 30080  # 节点端口（30000-32767 范围）
+

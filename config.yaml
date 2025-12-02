@@ -1,0 +1,140 @@
+# AI 文档处理器 - 默认配置文件
+# 用户可以复制此文件并自定义设置
+
+# ============= 翻译模式配置 =============
+translate:
+  # 语言设置
+  source_language: "zh"
+  target_language: "en"
+  context: ""
+
+  # ReAct 代理设置
+  react_agent:
+    framework: "enhanced"  # enhanced, langchain, langgraph
+    max_iterations: 5
+
+  # 处理选项
+  processing:
+    timeout: 300
+    chunk_size: 5000    # 优化：考虑上下文窗口，适当增加
+    max_concurrent: 3
+    enable_cache: true
+    max_revisions: 2
+
+  # 表格优化
+  table_optimization:
+    enabled: false
+    chunk_size: 8000    # 优化：表格需要更大chunk保持完整性
+    verbose_logging: false
+
+  # 资源文件路径
+  paths:
+    glossary_path: ""
+    style_guide_path: ""
+    document_library_path: ""
+
+  # 后处理设置
+  postprocessing:
+    enabled: true
+    mode: "default"  # default, conservative, aggressive
+    remove_translation_notes: true
+    remove_code_block_markers: true
+    remove_meta_comments: true
+    fix_markdown_formatting: true
+    max_content_loss_ratio: 0.3
+    # LLM 去重设置（实验性功能）
+    enable_duplicate_detection: false  # 暂时关闭，需要优化后再启用
+    # 说明：LLM 去重用于删除因 chunking overlap 导致的翻译重复
+    # 当前存在过度删除问题，建议暂时关闭
+
+# ============= 润色模式配置 =============
+polish:
+  # 语言设置
+  language: "chinese"  # 润色语言：chinese 或 english，默认 chinese
+
+  # 处理选项
+  processing:
+    timeout: 300
+    chunk_size: 6000    # 优化：润色需要更大上下文
+    max_concurrent: 3
+    enable_cache: true
+    max_revisions: 3
+
+  # 表格优化
+  table_optimization:
+    enabled: false
+    chunk_size: 6000
+    verbose_logging: false
+
+  # 资源文件路径
+  paths:
+    glossary_path: ""
+    style_guide_path: ""
+
+# ============= 高级润色模式配置 =============
+polish_advanced:
+  # 语言设置
+  language: "chinese"  # 润色语言：chinese 或 english，默认 chinese
+
+  # 处理选项
+  processing:
+    timeout: 400
+    chunk_size: 5000
+    max_concurrent: 2
+    enable_cache: true
+    max_revisions: 3
+
+  # 一致性检查
+  consistency:
+    enabled: true
+    document_library_path: ""
+
+  # 表格优化
+  table_optimization:
+    enabled: false
+    chunk_size: 6000
+    verbose_logging: false
+
+  # 资源文件路径
+  paths:
+    glossary_path: ""
+    style_guide_path: ""
+
+# ============= 术语检测模式配置 =============
+glossary_detection:
+  # 处理选项
+  processing:
+    timeout: 200
+    chunk_size: 6000
+    max_concurrent: 3
+    enable_cache: true
+
+  # 术语检测特定设置
+  detection:
+    min_frequency: 2
+    exclude_common_words: true
+    include_technical_terms: true
+
+  # 资源文件路径
+  paths:
+    document_library_path: ""
+    output_glossary_path: ""
+
+# ============= 全局设置 =============
+global:
+  # 输出设置
+  output:
+    default_suffix: "_processed"
+    preserve_structure: true
+
+  # 日志和调试
+  logging:
+    verbose: false
+    debug: false
+
+  # 性能设置
+  performance:
+    enable_parallel_processing: true
+    memory_optimization: true
+
+
