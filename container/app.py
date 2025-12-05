@@ -15,7 +15,7 @@ hostname = socket.gethostname()
 def hello():
     """主页"""
     return jsonify({
-        'message': 'Hello from Docker/Kubernetes!',
+        'message': 'Hello from Gordon!',
         'hostname': hostname,
         'version': '1.0.0'
     })
