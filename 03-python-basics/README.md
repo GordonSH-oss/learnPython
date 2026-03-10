@@ -26,7 +26,18 @@
 - **内容**: 元组的特性和使用场景
 - **要点**: 不可变性、哈希、解包
 
-### 5. 链表初始化
+### 5. Pydantic 数据校验
+- **文件**: 
+  - `pydantic_examples.py` - Pydantic 实用案例集合（基础 ⭐⭐）
+  - `pydantic-generic.py` - Pydantic 结合泛型的高级用法（进阶 ⭐⭐⭐⭐）
+  - `PYDANTIC_GUIDE.md` - Pydantic 完整使用指南
+  - `PYDANTIC_FILES.md` - 两个文件的对比和学习建议
+- **内容**: 
+  - **基础**: 数据校验、类型转换、自定义校验器、字段别名、序列化、嵌套模型、配置管理
+  - **进阶**: 泛型与 Pydantic 结合、通用分页器、统一响应格式
+- **要点**: BaseModel、Field、校验器、泛型、序列化
+
+### 6. 链表初始化
 - **文件**: `LINKED_LIST_INITIALIZATION.md`
 - **内容**: 链表数据结构的初始化方法
 - **要点**: 节点创建、指针操作
@@ -35,10 +46,12 @@
 
 1. **self_examples.py** - 理解面向对象基础
 2. **data_class.py** - 学习简化类定义的方法
-3. **slice_explanation.py** - 掌握切片和魔法方法
-4. **tuple_immutability_explanation.py** - 理解不可变数据类型
-5. **tuple_equality_explanation.py** - 深入元组比较
-6. **LINKED_LIST_INITIALIZATION.md** - 数据结构基础
+3. **pydantic_examples.py** - 掌握数据校验和 Pydantic 基础
+4. **pydantic-generic.py** - Pydantic 与泛型结合的高级用法
+5. **slice_explanation.py** - 掌握切片和魔法方法
+6. **tuple_immutability_explanation.py** - 理解不可变数据类型
+7. **tuple_equality_explanation.py** - 深入元组比较
+8. **LINKED_LIST_INITIALIZATION.md** - 数据结构基础
 
 ## 关键知识点
 
@@ -74,6 +87,19 @@ deck.__getitem__(slice(None, 3, None))
 t = (1, [2, 3], 4)
 # t[0] = 10  # ❌ 错误：不能修改元组元素
 t[1].append(5)  # ✅ 可以：列表内容可变
+```
+
+### Pydantic 数据校验
+```python
+from pydantic import BaseModel, Field, EmailStr
+
+class User(BaseModel):
+    name: str = Field(min_length=3, max_length=20)
+    email: EmailStr
+    age: int = Field(ge=18, le=120)
+
+user = User(name="张三", email="zhangsan@example.com", age="25")
+# 自动类型转换：age 从字符串 "25" 转换为 int 25
 ```
 
 ## 实践建议
