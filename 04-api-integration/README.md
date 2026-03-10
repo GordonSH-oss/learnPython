@@ -6,18 +6,47 @@
 
 ### 文件
 - `openai_demo.py` - OpenAI API 使用示例
+- `.env.example` - 环境变量配置示例
+- `.env` - 实际配置文件（不会被提交到 Git）
+
+### 快速开始
+
+#### 1. 配置环境变量
+```bash
+# 复制示例配置
+cp .env.example .env
+
+# 编辑 .env 文件，填入你的 API Key
+# OPENAI_API_KEY=your-api-key-here
+# OPENAI_BASE_URL=https://api-xmodel.rongcloud.cn/v1
+```
+
+#### 2. 安装依赖
+```bash
+pip install openai python-dotenv
+```
+
+#### 3. 运行示例
+```bash
+python openai_demo.py
+```
 
 ### 内容
 
 #### 基础配置
-使用 OpenAI SDK 1.0+ 版本的新语法：
+使用 OpenAI SDK 1.0+ 版本的新语法，配置从环境变量读取：
 
 ```python
+import os
 from openai import OpenAI
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 client = OpenAI(
-    api_key="your-api-key",
-    base_url="https://api.openai.com/v1"  # 或其他兼容的 API 端点
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 )
 ```
 
@@ -57,11 +86,34 @@ except Exception as e:
 ## 环境要求
 
 ```bash
-# 安装 OpenAI SDK
-pip install openai
+# 安装 OpenAI SDK 和 python-dotenv
+pip install openai python-dotenv
 
 # 如果使用旧版本需要升级
 pip install --upgrade openai
+```
+
+## 环境变量配置
+
+### 方法 1: 使用 .env 文件（推荐）
+```bash
+# 复制示例配置
+cp .env.example .env
+
+# 编辑 .env 文件
+OPENAI_API_KEY=your-api-key
+OPENAI_BASE_URL=https://api-xmodel.rongcloud.cn/v1
+```
+
+### 方法 2: 系统环境变量
+```bash
+# Linux/Mac
+export OPENAI_API_KEY="your-api-key"
+export OPENAI_BASE_URL="https://api-xmodel.rongcloud.cn/v1"
+
+# Windows (PowerShell)
+$env:OPENAI_API_KEY="your-api-key"
+$env:OPENAI_BASE_URL="https://api-xmodel.rongcloud.cn/v1"
 ```
 
 ## API 迁移
@@ -106,12 +158,24 @@ client = OpenAI(
 
 ## 注意事项
 
-1. **API Key 安全**: 不要将 API key 提交到代码仓库
-2. **使用环境变量**:
+1. **API Key 安全**: 
+   - ✅ 使用 `.env` 文件存储（已在 `.gitignore` 中）
+   - ✅ 使用环境变量
+   - ❌ 不要将 API key 硬编码在代码中
+   - ❌ 不要提交 `.env` 文件到 Git
+
+2. **环境变量最佳实践**:
    ```python
    import os
-   client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+   from dotenv import load_dotenv
+   
+   load_dotenv()  # 加载 .env 文件
+   
+   api_key = os.getenv("OPENAI_API_KEY")
+   if not api_key:
+       raise ValueError("请设置 OPENAI_API_KEY 环境变量")
    ```
+
 3. **错误处理**: 始终添加异常处理
 4. **模型可用性**: 确认服务端支持你使用的模型
 5. **速率限制**: 注意 API 调用频率限制
