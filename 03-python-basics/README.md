@@ -14,12 +14,24 @@
 - **内容**: 使用 `@dataclass` 装饰器简化类定义
 - **要点**: `field()`, `default_factory`, 避免可变默认值陷阱
 
-### 3. 切片机制
+### 3. 特殊方法（Magic Methods）
+- **文件夹**: `special-methods/`
+- **文件**:
+  - `property_decorator.py` - @property 装饰器详解
+  - `str_and_repr.py` - 对象字符串表示
+  - `comparison_operators.py` - 比较运算符重载
+  - `arithmetic_operators.py` - 算术运算符重载
+  - `container_methods.py` - 容器类型实现
+  - `README.md` - 完整指南
+- **内容**: Python 魔法方法的完整示例集合（30+ 个实用案例）
+- **要点**: 运算符重载、属性控制、迭代器、容器协议
+
+### 4. 切片机制
 - **文件**: `slice_explanation.py`
 - **内容**: 深入理解 Python 的切片操作
 - **要点**: `__getitem__` 魔法方法、slice 对象、切片语法
 
-### 4. 元组 (Tuple)
+### 5. 元组 (Tuple)
 - **文件**: 
   - `tuple_immutability_explanation.py` - 元组的不可变性
   - `tuple_equality_explanation.py` - 元组的相等性比较
@@ -46,12 +58,16 @@
 
 1. **self_examples.py** - 理解面向对象基础
 2. **data_class.py** - 学习简化类定义的方法
-3. **pydantic_examples.py** - 掌握数据校验和 Pydantic 基础
-4. **pydantic-generic.py** - Pydantic 与泛型结合的高级用法
-5. **slice_explanation.py** - 掌握切片和魔法方法
-6. **tuple_immutability_explanation.py** - 理解不可变数据类型
-7. **tuple_equality_explanation.py** - 深入元组比较
-8. **LINKED_LIST_INITIALIZATION.md** - 数据结构基础
+3. **special-methods/** - 学习 Python 特殊方法
+   - 从 `property_decorator.py` 开始
+   - 然后 `str_and_repr.py`
+   - 最后 `comparison_operators.py` 和其他
+4. **pydantic_examples.py** - 掌握数据校验和 Pydantic 基础
+5. **pydantic-generic.py** - Pydantic 与泛型结合的高级用法
+6. **slice_explanation.py** - 掌握切片和魔法方法
+7. **tuple_immutability_explanation.py** - 理解不可变数据类型
+8. **tuple_equality_explanation.py** - 深入元组比较
+9. **LINKED_LIST_INITIALIZATION.md** - 数据结构基础
 
 ## 关键知识点
 
