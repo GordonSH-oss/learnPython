@@ -31,7 +31,20 @@
 - **内容**: 深入理解 Python 的切片操作
 - **要点**: `__getitem__` 魔法方法、slice 对象、切片语法
 
-### 5. 元组 (Tuple)
+### 5. 推导式和生成器
+- **文件**:
+  - `comprehensions.py` - 推导式完整指南（8 个案例）
+  - `generators.py` - 生成器详解（10 个案例）
+  - `COMPREHENSIONS_VS_GENERATORS.md` - 详细对比文档
+- **内容**:
+  - 列表/字典/集合推导式
+  - 生成器函数和生成器表达式
+  - yield, yield from
+  - 内存和性能对比
+  - 使用场景和最佳实践
+- **要点**: 延迟计算、内存优化、迭代器协议
+
+### 6. 元组 (Tuple)
 - **文件**: 
   - `tuple_immutability_explanation.py` - 元组的不可变性
   - `tuple_equality_explanation.py` - 元组的相等性比较
@@ -58,16 +71,19 @@
 
 1. **self_examples.py** - 理解面向对象基础
 2. **data_class.py** - 学习简化类定义的方法
-3. **special-methods/** - 学习 Python 特殊方法
+3. **comprehensions.py** - 掌握推导式（列表/字典/集合）
+4. **generators.py** - 理解生成器和延迟计算
+5. **COMPREHENSIONS_VS_GENERATORS.md** - 学习何时使用哪个
+6. **special-methods/** - 学习 Python 特殊方法
    - 从 `property_decorator.py` 开始
    - 然后 `str_and_repr.py`
    - 最后 `comparison_operators.py` 和其他
-4. **pydantic_examples.py** - 掌握数据校验和 Pydantic 基础
-5. **pydantic-generic.py** - Pydantic 与泛型结合的高级用法
-6. **slice_explanation.py** - 掌握切片和魔法方法
-7. **tuple_immutability_explanation.py** - 理解不可变数据类型
-8. **tuple_equality_explanation.py** - 深入元组比较
-9. **LINKED_LIST_INITIALIZATION.md** - 数据结构基础
+7. **pydantic_examples.py** - 掌握数据校验和 Pydantic 基础
+8. **pydantic-generic.py** - Pydantic 与泛型结合的高级用法
+9. **slice_explanation.py** - 掌握切片和魔法方法
+10. **tuple_immutability_explanation.py** - 理解不可变数据类型
+11. **tuple_equality_explanation.py** - 深入元组比较
+12. **LINKED_LIST_INITIALIZATION.md** - 数据结构基础
 
 ## 关键知识点
 
@@ -116,6 +132,22 @@ class User(BaseModel):
 
 user = User(name="张三", email="zhangsan@example.com", age="25")
 # 自动类型转换：age 从字符串 "25" 转换为 int 25
+```
+
+### 推导式 vs 生成器
+```python
+# 列表推导式 - 立即计算，占用内存
+squares = [i ** 2 for i in range(1000000)]  # 创建完整列表
+
+# 生成器表达式 - 延迟计算，节省内存
+squares = (i ** 2 for i in range(1000000))  # 只在需要时计算
+
+# 生成器函数 - 使用 yield
+def fibonacci(n):
+    a, b = 0, 1
+    for _ in range(n):
+        yield a
+        a, b = b, a + b
 ```
 
 ## 实践建议
