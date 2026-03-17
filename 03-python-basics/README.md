@@ -4,10 +4,19 @@
 
 ## 核心概念
 
-### 1. self 关键字
-- **文件**: `self_examples.py`, `SELF_EXPLANATION.md`
-- **内容**: 理解 self 在类中的作用
-- **要点**: 实例引用、方法调用、属性访问
+### 1. 面向对象编程（OOP）
+- **文件**: 
+  - `self_examples.py`, `SELF_EXPLANATION.md` - self 关键字详解
+  - `polymorphism.py` - 多态详解（10 个案例）
+- **内容**: 
+  - self 在类中的作用
+  - 多态的概念和实现
+  - 方法重写（Override）
+  - 抽象基类（ABC）
+  - 鸭子类型（Duck Typing）
+  - Protocol 协议
+  - 设计模式应用
+- **要点**: 实例引用、方法调用、继承、多态、接口
 
 ### 2. 数据类 (DataClass)
 - **文件**: `data_class.py`
@@ -70,20 +79,21 @@
 ## 学习顺序建议
 
 1. **self_examples.py** - 理解面向对象基础
-2. **data_class.py** - 学习简化类定义的方法
-3. **comprehensions.py** - 掌握推导式（列表/字典/集合）
-4. **generators.py** - 理解生成器和延迟计算
-5. **COMPREHENSIONS_VS_GENERATORS.md** - 学习何时使用哪个
-6. **special-methods/** - 学习 Python 特殊方法
+2. **polymorphism.py** - 掌握多态概念和应用
+3. **data_class.py** - 学习简化类定义的方法
+4. **comprehensions.py** - 掌握推导式（列表/字典/集合）
+5. **generators.py** - 理解生成器和延迟计算
+6. **COMPREHENSIONS_VS_GENERATORS.md** - 学习何时使用哪个
+7. **special-methods/** - 学习 Python 特殊方法
    - 从 `property_decorator.py` 开始
    - 然后 `str_and_repr.py`
    - 最后 `comparison_operators.py` 和其他
-7. **pydantic_examples.py** - 掌握数据校验和 Pydantic 基础
-8. **pydantic-generic.py** - Pydantic 与泛型结合的高级用法
-9. **slice_explanation.py** - 掌握切片和魔法方法
-10. **tuple_immutability_explanation.py** - 理解不可变数据类型
-11. **tuple_equality_explanation.py** - 深入元组比较
-12. **LINKED_LIST_INITIALIZATION.md** - 数据结构基础
+8. **pydantic_examples.py** - 掌握数据校验和 Pydantic 基础
+9. **pydantic-generic.py** - Pydantic 与泛型结合的高级用法
+10. **slice_explanation.py** - 掌握切片和魔法方法
+11. **tuple_immutability_explanation.py** - 理解不可变数据类型
+12. **tuple_equality_explanation.py** - 深入元组比较
+13. **LINKED_LIST_INITIALIZATION.md** - 数据结构基础
 
 ## 关键知识点
 
@@ -148,6 +158,30 @@ def fibonacci(n):
     for _ in range(n):
         yield a
         a, b = b, a + b
+```
+
+### 多态（Polymorphism）
+```python
+from abc import ABC, abstractmethod
+
+class Animal(ABC):
+    @abstractmethod
+    def speak(self):
+        pass
+
+class Dog(Animal):
+    def speak(self):
+        return "汪汪汪！"
+
+class Cat(Animal):
+    def speak(self):
+        return "喵喵喵！"
+
+def animal_sound(animal: Animal):
+    print(animal.speak())
+
+animal_sound(Dog())  # 输出：汪汪汪！
+animal_sound(Cat())  # 输出：喵喵喵！
 ```
 
 ## 实践建议
