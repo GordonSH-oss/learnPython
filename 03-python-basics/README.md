@@ -8,22 +8,32 @@
 - **文件**: 
   - `self_examples.py`, `SELF_EXPLANATION.md` - self 关键字详解
   - `polymorphism.py` - 多态详解（10 个案例）
+  - `DUCK_TYPING.md` - 鸭子类型深度解析
+  - `args_and_kwargs.py` - 函数参数详解（10 个案例）
 - **内容**: 
   - self 在类中的作用
   - 多态的概念和实现
   - 方法重写（Override）
   - 抽象基类（ABC）
-  - 鸭子类型（Duck Typing）
+  - 鸭子类型（Duck Typing）详解
   - Protocol 协议
   - 设计模式应用
-- **要点**: 实例引用、方法调用、继承、多态、接口
+  - EAFP vs LBYL
+  - `*args` 和 `**kwargs` 使用规则
+  - 函数参数顺序规则
+- **要点**: 实例引用、方法调用、继承、多态、接口、行为优先、可变参数
 
-### 2. 数据类 (DataClass)
+### 2. 闭包（Closure）
+- **文件**: `closures.py`, `CLOSURES.md`
+- **内容**: 闭包的原理、状态保持、nonlocal、与类的对比
+- **要点**: 自由变量、工厂函数、状态隔离、轻量级状态管理
+
+### 3. 数据类 (DataClass)
 - **文件**: `data_class.py`
 - **内容**: 使用 `@dataclass` 装饰器简化类定义
 - **要点**: `field()`, `default_factory`, 避免可变默认值陷阱
 
-### 3. 特殊方法（Magic Methods）
+### 4. 特殊方法（Magic Methods）
 - **文件夹**: `special-methods/`
 - **文件**:
   - `property_decorator.py` - @property 装饰器详解
@@ -35,12 +45,12 @@
 - **内容**: Python 魔法方法的完整示例集合（30+ 个实用案例）
 - **要点**: 运算符重载、属性控制、迭代器、容器协议
 
-### 4. 切片机制
+### 5. 切片机制
 - **文件**: `slice_explanation.py`
 - **内容**: 深入理解 Python 的切片操作
 - **要点**: `__getitem__` 魔法方法、slice 对象、切片语法
 
-### 5. 推导式和生成器
+### 6. 推导式和生成器
 - **文件**:
   - `comprehensions.py` - 推导式完整指南（8 个案例）
   - `generators.py` - 生成器详解（10 个案例）
@@ -81,19 +91,20 @@
 1. **self_examples.py** - 理解面向对象基础
 2. **polymorphism.py** - 掌握多态概念和应用
 3. **data_class.py** - 学习简化类定义的方法
-4. **comprehensions.py** - 掌握推导式（列表/字典/集合）
-5. **generators.py** - 理解生成器和延迟计算
-6. **COMPREHENSIONS_VS_GENERATORS.md** - 学习何时使用哪个
-7. **special-methods/** - 学习 Python 特殊方法
+4. **closures.py** - 理解闭包和函数式状态管理
+5. **comprehensions.py** - 掌握推导式（列表/字典/集合）
+6. **generators.py** - 理解生成器和延迟计算
+7. **COMPREHENSIONS_VS_GENERATORS.md** - 学习何时使用哪个
+8. **special-methods/** - 学习 Python 特殊方法
    - 从 `property_decorator.py` 开始
    - 然后 `str_and_repr.py`
    - 最后 `comparison_operators.py` 和其他
-8. **pydantic_examples.py** - 掌握数据校验和 Pydantic 基础
-9. **pydantic-generic.py** - Pydantic 与泛型结合的高级用法
-10. **slice_explanation.py** - 掌握切片和魔法方法
-11. **tuple_immutability_explanation.py** - 理解不可变数据类型
-12. **tuple_equality_explanation.py** - 深入元组比较
-13. **LINKED_LIST_INITIALIZATION.md** - 数据结构基础
+9. **pydantic_examples.py** - 掌握数据校验和 Pydantic 基础
+10. **pydantic-generic.py** - Pydantic 与泛型结合的高级用法
+11. **slice_explanation.py** - 掌握切片和魔法方法
+12. **tuple_immutability_explanation.py** - 理解不可变数据类型
+13. **tuple_equality_explanation.py** - 深入元组比较
+14. **LINKED_LIST_INITIALIZATION.md** - 数据结构基础
 
 ## 关键知识点
 
@@ -105,6 +116,30 @@ class MyClass:
     
     def method(self):
         return self.value   # 访问实例属性
+```
+
+### 闭包（Closure）
+
+```python
+def make_aver():
+    series = []                        # 只初始化一次
+    def aver(new_value):
+        series.append(new_value)
+        return sum(series) / len(series)
+    return aver                        # 返回函数本身，不是调用结果
+
+avger = make_aver()
+print(avger(10))   # 10.0
+print(avger(11))   # 10.5  — series 跨调用保持状态
+
+# 修改不可变的外层变量需要 nonlocal
+def make_counter():
+    count = 0
+    def counter():
+        nonlocal count
+        count += 1
+        return count
+    return counter
 ```
 
 ### DataClass 最佳实践

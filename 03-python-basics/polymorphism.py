@@ -64,6 +64,8 @@ print("=" * 60)
 # "如果它走起来像鸭子，叫起来像鸭子，那它就是鸭子"
 # Python 不要求继承，只要有相同的方法即可
 
+print("核心理念：只看行为，不看类型\n")
+
 class Bird:
     """不继承 Animal，但有 speak 方法"""
     def speak(self):
@@ -84,6 +86,12 @@ print("鸭子类型演示（不需要继承）：")
 things = [Bird(), Robot(), Car()]
 for thing in things:
     animal_sound(thing)  # 同样可以调用
+
+print("\n关键点：")
+print("  ✅ Bird、Robot、Car 都没有继承 Animal")
+print("  ✅ 但它们都有 speak() 方法")
+print("  ✅ 所以可以在 animal_sound() 中使用")
+print("  ✅ Python 只关心对象有没有需要的方法，不关心类型")
 
 
 # ============================================================

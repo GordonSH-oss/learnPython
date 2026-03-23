@@ -85,6 +85,28 @@ Docker、docker-compose 等容器化相关的配置和数据。
 - `test.txt` - 测试文本
 - `test.yaml` - 测试配置
 
+### 📁 07-deep-learning - PyTorch 深度学习
+PyTorch 深度学习从基础到实战的完整教程。
+
+**基础教程：**
+- `pytorch_basics.py` - PyTorch 基础入门
+- `tensors.py` - 张量操作详解（待添加）
+- `autograd.py` - 自动微分机制（待添加）
+
+**神经网络：**
+- `neural_networks.py` - 构建神经网络（待添加）
+- `training_loop.py` - 训练循环（待添加）
+- `datasets_dataloaders.py` - 数据加载（待添加）
+
+**实战项目：**
+- `linear_regression.py` - 线性回归（待添加）
+- `image_classification.py` - 图像分类（待添加）
+- `cnn_mnist.py` - CNN 手写数字识别（待添加）
+- `transfer_learning.py` - 迁移学习（待添加）
+
+**文档：**
+- `README.md` - 完整的学习指南和资源
+
 ## 学习路径建议
 
 1. **Python 基础** → 从 `03-python-basics` 开始
