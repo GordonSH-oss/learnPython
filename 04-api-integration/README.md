@@ -156,6 +156,130 @@ client = OpenAI(
 )
 ```
 
+## 自定义 HTTP Transport
+
+### 什么是 Transport？
+
+OpenAI SDK 底层使用 `httpx` 库发送请求。`Transport` 是 httpx 的网络层抽象，负责把一个 `httpx.Request` 对象真正发送出去并返回响应。
+
+```
+你的代码
+  → OpenAI SDK（构建请求、解析响应）
+    → httpx.Client（连接管理、重试）
+      → Transport（真正的网络 I/O）
+        → 服务器
+```
+
+通过替换默认 Transport，可以在请求发出前拦截并修改它——比如过滤请求头、打印调试信息、模拟响应等。
+
+### 典型场景：第三方中转服务拦截 SDK 请求头
+
+OpenAI SDK 会自动在每个请求里附加一批特征头：
+
+```
+user-agent: OpenAI/Python 1.99.9
+x-stainless-lang: python
+x-stainless-os: MacOS
+x-stainless-arch: arm64
+...
+```
+
+部分第三方中转服务会识别这些头并拒绝请求（返回 403）。解决方案是自定义 Transport，在发送前把这些头过滤掉。
+
+### 如何排查被拦截的请求头
+
+先用调试 Transport 打印出 SDK 实际发出的所有头：
+
+```python
+import httpx
+from openai import OpenAI
+
+class DebugTransport(httpx.BaseTransport):
+    def __init__(self):
+        self._transport = httpx.HTTPTransport()
+
+    def handle_request(self, request):
+        print("=== 实际发出的请求头 ===")
+        for k, v in request.headers.items():
+            print(f"  {k}: {v}")
+        return self._transport.handle_request(request)
+
+client = OpenAI(
+    api_key="...",
+    base_url="...",
+    http_client=httpx.Client(transport=DebugTransport())
+)
+```
+
+然后用 `requests` 直接调用 API，逐一对比两者的头，找出哪个触发了拦截：
+
+```python
+import requests
+
+# 只带最基础的头，看能否通过
+r = requests.post(f"{base_url}/chat/completions",
+    headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+    json={"model": "gpt-5.4", "messages": [{"role": "user", "content": "hi"}]}
+)
+print(r.status_code)  # 200 = 通过，403 = 被拦
+
+# 加上可疑的头，复现拦截
+r2 = requests.post(..., headers={..., "user-agent": "OpenAI/Python 1.99.9"}, ...)
+print(r2.status_code)  # 403 → 确认是这个头触发了拦截
+```
+
+### 自定义 Transport 过滤请求头
+
+找到被拦截的头之后，写一个过滤 Transport：
+
+```python
+import httpx
+from openai import OpenAI
+
+BLOCKED_HEADERS = {
+    "user-agent",
+    "x-stainless-lang",
+    "x-stainless-package-version",
+    "x-stainless-os",
+    "x-stainless-arch",
+    "x-stainless-runtime",
+    "x-stainless-runtime-version",
+    "x-stainless-async",
+    "x-stainless-retry-count",
+    "x-stainless-read-timeout",
+}
+
+class StripSDKHeadersTransport(httpx.BaseTransport):
+    def __init__(self):
+        self._transport = httpx.HTTPTransport()
+
+    def handle_request(self, request):
+        # 过滤掉被拦截的头，重新构建请求
+        filtered = {
+            k: v for k, v in request.headers.items()
+            if k.lower() not in BLOCKED_HEADERS
+        }
+        request = httpx.Request(
+            method=request.method,
+            url=request.url,
+            headers=filtered,
+            content=request.content,
+        )
+        return self._transport.handle_request(request)
+
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url=os.getenv("OPENAI_BASE_URL"),
+    http_client=httpx.Client(transport=StripSDKHeadersTransport())
+)
+```
+
+### 注意事项
+
+- **重新构建 `httpx.Request`**：httpx 的 `Headers` 是只读的，不能直接删除，必须用过滤后的字典创建新的 `Request` 对象。
+- **`content` vs `stream`**：重建请求时传 `content=request.content`，这对普通 JSON 请求（已在内存中）是安全的；流式请求（streaming）需要额外处理。
+- **这是中转服务的问题**：直接调用 `api.openai.com` 完全不需要这些处理，SDK 的这些头是正常的遥测信息。
+
 ## 注意事项
 
 1. **API Key 安全**: 

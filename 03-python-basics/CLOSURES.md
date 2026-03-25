@@ -88,9 +88,40 @@ print(avger2(15))  # 10.0（基于 [5, 15]）
 
 如果用全局变量，就无法做到这一点。
 
-## nonlocal：修改不可变的外层变量
+## 内层函数对外层变量的访问规则
 
-如果被捕获的变量是不可变类型（`int`、`str`、`tuple`），直接赋值会报错。必须用 `nonlocal` 声明：
+内层函数可以**读取**外层变量，也可以**改动外层变量指向的对象内容**，但不能对外层变量本身**重新赋值**——除非用 `nonlocal`。
+
+用便利贴来比喻：`series` 是一张便利贴，上面写着"这里有一个列表"。
+
+- `series.append(x)` — 你找到便利贴，去列表里加了一个元素。**便利贴本身没动**，不需要 `nonlocal`
+- `series = []` — 你想把便利贴撕掉，贴一张新的。**这是在动便利贴本身**，需要 `nonlocal`
+- `count += 1` — `count` 是 `int`，不可变，你只能撕掉旧便利贴，贴新的。**必须用 `nonlocal`**
+
+**判断是否需要 `nonlocal` 的规则：只要你对外层变量写了赋值号 `=`，就需要 `nonlocal`。** 调用方法（`.append()`、`.update()` 等）不算赋值，不需要。
+
+```python
+def outer():
+    series = []
+    count = 0
+
+    def inner(x):
+        series.append(x)   # ✅ 修改列表内容，不需要 nonlocal
+        # series = []      # ❌ 对变量重新赋值，需要 nonlocal
+
+        nonlocal count
+        count += 1         # count = count + 1，对变量重新赋值，必须 nonlocal
+
+    return inner
+```
+
+### 为什么不加 `nonlocal` 会报错？
+
+在内层函数里，**凡是写了赋值号 `=` 的变量**，Python 会自动认为它是**局部变量**。如果你同时又在赋值之前读取了它（例如 `count = count + 1` 里先读 `count`），就会报 `UnboundLocalError`——因为 Python 认为你在读一个还没定义的局部变量。
+
+`nonlocal` 的作用就是告诉 Python："这个变量不是局部的，去外层找。"
+
+## nonlocal：修改外层变量的示例
 
 ```python
 def make_counter():
@@ -106,10 +137,6 @@ print(c())   # 1
 print(c())   # 2
 print(c())   # 3
 ```
-
-> **为什么列表不需要 `nonlocal`？**
->
-> `series.append(new_value)` 是在修改列表的**内容**，变量 `series` 本身（即它指向的对象）没有变。而 `count += 1` 等价于 `count = count + 1`，是对变量本身重新赋值，所以需要 `nonlocal`。
 
 ## 闭包 vs 类（等价对比）
 
