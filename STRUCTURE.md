@@ -51,7 +51,12 @@ learn-python/
 ├── 03-python-basics/                  # Python 基础
 │   ├── README.md                      # 基础特性学习指南
 │   ├── data_class.py                  # 数据类
+│   ├── decorators.py                  # 装饰器与带参数装饰器
+│   ├── multiple_dispatch.py           # 多分派函数
+│   ├── singledispatch.py              # 单分派泛化函数
+│   ├── MULTIPLEDISPATCH.md            # multipledispatch 文档
 │   ├── self_examples.py               # self 关键字示例
+│   ├── SINGLEDISPATCH.md              # singledispatch 文档
 │   ├── slice_explanation.py           # 切片详解
 │   ├── tuple_equality_explanation.py  # 元组相等性
 │   ├── tuple_immutability_explanation.py # 元组不可变性

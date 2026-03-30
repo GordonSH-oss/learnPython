@@ -7,12 +7,18 @@
 ### 1. 面向对象编程（OOP）
 - **文件**: 
   - `self_examples.py`, `SELF_EXPLANATION.md` - self 关键字详解
+  - `decorators.py` - 装饰器完整教程（含带参数装饰器）
   - `polymorphism.py` - 多态详解（10 个案例）
+  - `singledispatch.py`, `SINGLEDISPATCH.md` - 单分派泛化函数教程
+  - `multiple_dispatch.py`, `MULTIPLEDISPATCH.md` - 多分派函数教程（第三方库）
   - `DUCK_TYPING.md` - 鸭子类型深度解析
   - `args_and_kwargs.py` - 函数参数详解（10 个案例）
 - **内容**: 
   - self 在类中的作用
+  - 装饰器与装饰器工厂
   - 多态的概念和实现
+  - 函数层面的多态（`functools.singledispatch`）
+  - 多参数类型组合分派（`multipledispatch`）
   - 方法重写（Override）
   - 抽象基类（ABC）
   - 鸭子类型（Duck Typing）详解
@@ -20,6 +26,7 @@
   - 设计模式应用
   - EAFP vs LBYL
   - `*args` 和 `**kwargs` 使用规则
+  - `@wraps` 与元信息保留
   - 函数参数顺序规则
 - **要点**: 实例引用、方法调用、继承、多态、接口、行为优先、可变参数
 
@@ -89,22 +96,25 @@
 ## 学习顺序建议
 
 1. **self_examples.py** - 理解面向对象基础
-2. **polymorphism.py** - 掌握多态概念和应用
-3. **data_class.py** - 学习简化类定义的方法
-4. **closures.py** - 理解闭包和函数式状态管理
-5. **comprehensions.py** - 掌握推导式（列表/字典/集合）
-6. **generators.py** - 理解生成器和延迟计算
-7. **COMPREHENSIONS_VS_GENERATORS.md** - 学习何时使用哪个
-8. **special-methods/** - 学习 Python 特殊方法
+2. **decorators.py** - 学习普通装饰器、带参数装饰器和 `@wraps`
+3. **polymorphism.py** - 掌握多态概念和应用
+4. **singledispatch.py** - 学习函数层面的多态和类型分派
+5. **multiple_dispatch.py** - 学习多参数签名分派和第三方多分派库
+6. **data_class.py** - 学习简化类定义的方法
+7. **closures.py** - 理解闭包和函数式状态管理
+8. **comprehensions.py** - 掌握推导式（列表/字典/集合）
+9. **generators.py** - 理解生成器和延迟计算
+10. **COMPREHENSIONS_VS_GENERATORS.md** - 学习何时使用哪个
+11. **special-methods/** - 学习 Python 特殊方法
    - 从 `property_decorator.py` 开始
    - 然后 `str_and_repr.py`
    - 最后 `comparison_operators.py` 和其他
-9. **pydantic_examples.py** - 掌握数据校验和 Pydantic 基础
-10. **pydantic-generic.py** - Pydantic 与泛型结合的高级用法
-11. **slice_explanation.py** - 掌握切片和魔法方法
-12. **tuple_immutability_explanation.py** - 理解不可变数据类型
-13. **tuple_equality_explanation.py** - 深入元组比较
-14. **LINKED_LIST_INITIALIZATION.md** - 数据结构基础
+12. **pydantic_examples.py** - 掌握数据校验和 Pydantic 基础
+13. **pydantic-generic.py** - Pydantic 与泛型结合的高级用法
+14. **slice_explanation.py** - 掌握切片和魔法方法
+15. **tuple_immutability_explanation.py** - 理解不可变数据类型
+16. **tuple_equality_explanation.py** - 深入元组比较
+17. **LINKED_LIST_INITIALIZATION.md** - 数据结构基础
 
 ## 关键知识点
 
@@ -141,6 +151,29 @@ def make_counter():
         return count
     return counter
 ```
+
+### 带参数的装饰器
+```python
+from functools import wraps
+import time
+
+def clock(format_str="耗时: {duration:.4f}s"):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            duration = time.perf_counter() - start
+            print(format_str.format(func_name=func.__name__, duration=duration))
+            return result
+        return wrapper
+    return decorator
+```
+
+核心要点：
+- 带参数装饰器本质上是“外层工厂 + 中层 decorator + 内层 wrapper”
+- 外层参数会通过闭包被 `wrapper` 捕获和使用
+- 这类装饰器通常要配合 `@wraps(func)` 保留原函数元信息
 
 ### DataClass 最佳实践
 ```python
@@ -218,6 +251,52 @@ def animal_sound(animal: Animal):
 animal_sound(Dog())  # 输出：汪汪汪！
 animal_sound(Cat())  # 输出：喵喵喵！
 ```
+
+### 单分派泛化函数（Single Dispatch Generic Function）
+```python
+from functools import singledispatch
+
+@singledispatch
+def handle(value):
+    raise TypeError(f"不支持类型: {type(value).__name__}")
+
+@handle.register
+def _(value: int):
+    return value * 2
+
+@handle.register
+def _(value: str):
+    return value.upper()
+
+print(handle(10))      # 20
+print(handle("hello")) # HELLO
+```
+
+核心要点：
+- `singledispatch` 只根据第一个参数的类型分派
+- 新增类型时只需要补注册函数，不需要回到原函数里继续堆 `if/elif`
+- 它是“函数层面的多态”，适合替代不断膨胀的类型判断逻辑
+
+### 多分派函数（Multiple Dispatch）
+```python
+from multipledispatch import dispatch
+
+@dispatch(int, int)
+def combine(left, right):
+    return left + right
+
+@dispatch(str, str)
+def combine(left, right):
+    return left + right
+
+print(combine(1, 2))          # 3
+print(combine("Py", "thon"))  # Python
+```
+
+核心要点：
+- `multipledispatch` 根据完整参数签名分派，不只看第一个参数
+- `(str, int)` 和 `(int, str)` 可以是完全不同的实现
+- 它是第三方库，使用前需要先安装 `pip install multipledispatch`
 
 ## 实践建议
 

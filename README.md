@@ -49,10 +49,15 @@ Python 语言的基础概念和特性。
 
 **文件列表：**
 - `data_class.py` - 数据类使用
+- `decorators.py` - 装饰器与带参数装饰器
+- `multiple_dispatch.py` - 多分派函数示例
+- `singledispatch.py` - 单分派泛化函数示例
 - `self_examples.py` - self 关键字示例
 - `slice_explanation.py` - 切片机制详解
 - `tuple_equality_explanation.py` - 元组相等性说明
 - `tuple_immutability_explanation.py` - 元组不可变性说明
+- `MULTIPLEDISPATCH.md` - multipledispatch 教程文档
+- `SINGLEDISPATCH.md` - singledispatch 教程文档
 - `SELF_EXPLANATION.md` - self 关键字文档
 - `LINKED_LIST_INITIALIZATION.md` - 链表初始化文档
 

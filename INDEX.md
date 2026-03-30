@@ -18,6 +18,7 @@
 
 - `data_class.py` → `03-python-basics/`
 - `database.py` → `02-database/`
+- `decorators.py` → `03-python-basics/`
 - `docker-compose.yml` → `05-devops/`
 - `DUPLICATE_INSERT_EXPLANATION.md` → `02-database/`
 
@@ -45,11 +46,13 @@
 
 ## M
 
+- `multiple_dispatch.py` → `03-python-basics/`
 - `milvus_add_new_data.py` → `02-database/`
 - `milvus_data/` → `05-devops/`
 - `milvus_demo.db` → `02-database/`
 - `milvus_search.py` → `02-database/`
 - `milvus_use.py` → `02-database/`
+- `MULTIPLEDISPATCH.md` → `03-python-basics/`
 - `MILVUS_PERSISTENCE.md` → `02-database/`
 - `MILVUS_SCHEMA_EXPLANATION.md` → `02-database/`
 - `MILVUS_SETUP.md` → `02-database/`
@@ -71,8 +74,10 @@
 
 ## S
 
+- `SINGLEDISPATCH.md` → `03-python-basics/`
 - `self_examples.py` → `03-python-basics/`
 - `SELF_EXPLANATION.md` → `03-python-basics/`
+- `singledispatch.py` → `03-python-basics/`
 - `slice_explanation.py` → `03-python-basics/`
 - `sqlalchemy_example.py` → `02-database/`
 - `sqlalchemy_tutorial.py` → `02-database/`
@@ -133,7 +138,12 @@
 ```
 03-python-basics/
 ├── data_class.py
+├── decorators.py
+├── multiple_dispatch.py
+├── singledispatch.py
+├── MULTIPLEDISPATCH.md
 ├── self_examples.py
+├── SINGLEDISPATCH.md
 ├── slice_explanation.py
 ├── tuple_equality_explanation.py
 └── tuple_immutability_explanation.py
@@ -175,6 +185,15 @@ A: 从 `02-database/MILVUS_SETUP.md` 开始，然后看 `milvus_use.py`
 
 **Q: self 关键字是什么？**  
 A: `03-python-basics/SELF_EXPLANATION.md` 有详细说明
+
+**Q: 带参数的装饰器应该怎么写？**  
+A: `03-python-basics/decorators.py`
+
+**Q: 如何按参数类型自动调用不同函数实现？**  
+A: `03-python-basics/singledispatch.py` 和 `03-python-basics/SINGLEDISPATCH.md`
+
+**Q: 如果要按多个参数的类型组合分派呢？**  
+A: `03-python-basics/multiple_dispatch.py` 和 `03-python-basics/MULTIPLEDISPATCH.md`
 
 **Q: 如何调用 OpenAI API？**  
 A: `04-api-integration/openai_demo.py`

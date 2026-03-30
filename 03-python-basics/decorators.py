@@ -282,6 +282,56 @@ def say_hello(name: str):
 
 say_hello("Alice")
 
+print("\n装饰器工厂结构:")
+print("""
+repeat(3) 的本质是三层函数：
+1. 外层 repeat(times)        -> 接收装饰器自己的参数
+2. 中层 decorator(func)     -> 接收被装饰函数
+3. 内层 wrapper(*args, **kwargs) -> 真正执行增强逻辑
+""")
+
+print("再看一个更接近真实项目的例子：自定义格式的计时装饰器")
+
+def clock(format_str="耗时: {duration:.4f}s"):
+    """计时装饰器工厂 - 支持自定义输出格式"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            import time
+
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            duration = time.perf_counter() - start
+            print(format_str.format(func_name=func.__name__, duration=duration))
+            return result
+        return wrapper
+    return decorator
+
+@clock(format_str="  函数 {func_name} 运行时间: {duration:.2f} 秒")
+def slow_add(a, b):
+    import time
+
+    time.sleep(0.2)
+    return a + b
+
+@clock()
+def slow_mul(a, b):
+    import time
+
+    time.sleep(0.1)
+    return a * b
+
+print(f"slow_add(1, 2) -> {slow_add(1, 2)}")
+print(f"slow_mul(3, 4) -> {slow_mul(3, 4)}")
+
+print("""
+这个例子说明：
+• `format_str` 被外层函数捕获，形成闭包
+• 每次调用 slow_add / slow_mul 时，wrapper 都能访问这个参数
+• `@clock(...)` 一定要加括号，因为你在调用装饰器工厂
+• 如果格式串里用了 `{func_name}`、`{duration}`，format() 就必须传入同名参数
+""")
+
 
 # ============================================================
 # 案例 8: 实用的装饰器示例
@@ -461,6 +511,12 @@ def decorator(func):
 3. 返回原函数的返回值
 4. 添加文档字符串说明装饰器的作用
 5. 考虑是否需要带参数的装饰器
+
+带参数装饰器的本质：
+1. 外层工厂函数接收配置参数
+2. 中层 decorator 接收原函数
+3. 内层 wrapper 执行增强逻辑
+4. 工厂参数通常通过闭包被 wrapper 访问
 
 记住：
 装饰器 + *args + **kwargs = 通用且强大的函数增强工具！
