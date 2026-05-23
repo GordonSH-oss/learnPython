@@ -70,14 +70,19 @@
   - 使用场景和最佳实践
 - **要点**: 延迟计算、内存优化、迭代器协议
 
-### 6. 元组 (Tuple)
+### 7. 压缩（Compression）
+- **文件**: `bz2_compression.py`, `COMPRESSION.md`
+- **内容**: 对比 `gzip`、`bz2`、`lzma`、`zlib` 的压缩率、速度、文件格式和典型使用场景
+- **要点**: bytes 压缩、压缩文件读写、流式压缩、压缩等级、标准库命名冲突
+
+### 8. 元组 (Tuple)
 - **文件**: 
   - `tuple_immutability_explanation.py` - 元组的不可变性
   - `tuple_equality_explanation.py` - 元组的相等性比较
 - **内容**: 元组的特性和使用场景
 - **要点**: 不可变性、哈希、解包
 
-### 5. Pydantic 数据校验
+### 9. Pydantic 数据校验
 - **文件**: 
   - `pydantic_examples.py` - Pydantic 实用案例集合（基础 ⭐⭐）
   - `pydantic-generic.py` - Pydantic 结合泛型的高级用法（进阶 ⭐⭐⭐⭐）
@@ -88,7 +93,7 @@
   - **进阶**: 泛型与 Pydantic 结合、通用分页器、统一响应格式
 - **要点**: BaseModel、Field、校验器、泛型、序列化
 
-### 6. 链表初始化
+### 10. 链表初始化
 - **文件**: `LINKED_LIST_INITIALIZATION.md`
 - **内容**: 链表数据结构的初始化方法
 - **要点**: 节点创建、指针操作
@@ -105,16 +110,17 @@
 8. **comprehensions.py** - 掌握推导式（列表/字典/集合）
 9. **generators.py** - 理解生成器和延迟计算
 10. **COMPREHENSIONS_VS_GENERATORS.md** - 学习何时使用哪个
-11. **special-methods/** - 学习 Python 特殊方法
+11. **bz2_compression.py**, **COMPRESSION.md** - 学习标准库压缩模块
+12. **special-methods/** - 学习 Python 特殊方法
    - 从 `property_decorator.py` 开始
    - 然后 `str_and_repr.py`
    - 最后 `comparison_operators.py` 和其他
-12. **pydantic_examples.py** - 掌握数据校验和 Pydantic 基础
-13. **pydantic-generic.py** - Pydantic 与泛型结合的高级用法
-14. **slice_explanation.py** - 掌握切片和魔法方法
-15. **tuple_immutability_explanation.py** - 理解不可变数据类型
-16. **tuple_equality_explanation.py** - 深入元组比较
-17. **LINKED_LIST_INITIALIZATION.md** - 数据结构基础
+13. **pydantic_examples.py** - 掌握数据校验和 Pydantic 基础
+14. **pydantic-generic.py** - Pydantic 与泛型结合的高级用法
+15. **slice_explanation.py** - 掌握切片和魔法方法
+16. **tuple_immutability_explanation.py** - 理解不可变数据类型
+17. **tuple_equality_explanation.py** - 深入元组比较
+18. **LINKED_LIST_INITIALIZATION.md** - 数据结构基础
 
 ## 关键知识点
 
