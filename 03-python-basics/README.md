@@ -98,6 +98,11 @@
 - **内容**: 链表数据结构的初始化方法
 - **要点**: 节点创建、指针操作
 
+### 11. 标准库常用工具
+- **文件**: `standard_library_tour.py`
+- **内容**: `pathlib`、`json`、`re`、`collections`、`functools`、`itertools` 的组合使用
+- **要点**: 用标准库完成文件读取、文本分析、缓存、分组和 JSON 输出
+
 ## 学习顺序建议
 
 1. **self_examples.py** - 理解面向对象基础
@@ -121,6 +126,7 @@
 16. **tuple_immutability_explanation.py** - 理解不可变数据类型
 17. **tuple_equality_explanation.py** - 深入元组比较
 18. **LINKED_LIST_INITIALIZATION.md** - 数据结构基础
+19. **standard_library_tour.py** - 连接真实项目常用标准库
 
 ## 关键知识点
 

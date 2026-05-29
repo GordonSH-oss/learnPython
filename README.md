@@ -4,6 +4,13 @@
 
 ## 目录结构
 
+### 📁 00-environment - 环境、依赖和项目结构
+学习虚拟环境、依赖清单、环境变量配置和 Python 项目入口。
+
+**文件列表：**
+- `README.md` - 环境和依赖学习指南
+- `config_example.py` - 标准库配置读取示例
+
 ### 📁 01-type-system - Python 类型系统
 学习 Python 的类型注解、泛型、类型检查等高级特性。
 
@@ -16,6 +23,7 @@
 - `type_annotation_usefulness.py` - 类型注解的用途
 - `typevar_bound_explanation.py` - TypeVar 边界说明
 - `typevar_usage_scenarios.py` - TypeVar 使用场景
+- `advanced_typing.py` - 工程常用高级类型示例
 - `FORWARD_REFERENCE.md` - 前向引用文档
 - `RUNTIME_VS_TYPE_CHECKING.md` - 运行时与类型检查对比文档
 
@@ -56,6 +64,7 @@ Python 语言的基础概念和特性。
 - `slice_explanation.py` - 切片机制详解
 - `tuple_equality_explanation.py` - 元组相等性说明
 - `tuple_immutability_explanation.py` - 元组不可变性说明
+- `standard_library_tour.py` - 标准库常用工具组合示例
 - `MULTIPLEDISPATCH.md` - multipledispatch 教程文档
 - `SINGLEDISPATCH.md` - singledispatch 教程文档
 - `SELF_EXPLANATION.md` - self 关键字文档
@@ -66,6 +75,7 @@ Python 语言的基础概念和特性。
 
 **文件列表：**
 - `openai_demo.py` - OpenAI API 使用示例
+- `resilient_api_client.py` - 可测试 API 客户端、重试和错误边界示例
 
 ### 📁 05-devops - 容器化和部署
 Docker、docker-compose 等容器化相关的配置和数据。
@@ -85,6 +95,7 @@ Docker、docker-compose 等容器化相关的配置和数据。
 - `analyze_md.py` - Markdown 分析工具
 - `chunking.py` - 文本分块工具
 - `use_chunking.py` - 分块使用示例
+- `markdown_retrieval.py` - Markdown 切分与 hybrid 检索评分
 - `objectname.md` - 对象命名文档
 - `structure_output.json` - 结构输出
 - `test.txt` - 测试文本
@@ -95,30 +106,121 @@ PyTorch 深度学习从基础到实战的完整教程。
 
 **基础教程：**
 - `pytorch_basics.py` - PyTorch 基础入门
-- `tensors.py` - 张量操作详解（待添加）
-- `autograd.py` - 自动微分机制（待添加）
+- `tensors.py` - 张量操作详解
+- `autograd.py` - 自动微分机制
 
 **神经网络：**
-- `neural_networks.py` - 构建神经网络（待添加）
-- `training_loop.py` - 训练循环（待添加）
-- `datasets_dataloaders.py` - 数据加载（待添加）
+- `neural_networks.py` - 构建神经网络
+- `training_loop.py` - 训练循环
+- `datasets_dataloaders.py` - 数据加载
 
 **实战项目：**
-- `linear_regression.py` - 线性回归（待添加）
-- `image_classification.py` - 图像分类（待添加）
-- `cnn_mnist.py` - CNN 手写数字识别（待添加）
-- `transfer_learning.py` - 迁移学习（待添加）
+- `linear_regression.py` - 线性回归
+- `image_classification.py` - 图像分类
+- `cnn_mnist.py` - CNN 手写数字识别
+- `transfer_learning.py` - 迁移学习
 
 **文档：**
 - `README.md` - 完整的学习指南和资源
 
+### 📁 08-frameworks - 通过框架源码学习 Python
+包含 Django 和 FastAPI 两个真实框架源码，用来学习 Python 进阶特性和大型项目设计。
+
+**核心文档：**
+- `README.md` - 模块入口说明
+- `PYTHON_FRAMEWORK_SOURCE_LEARNING.md` - 通过 Django/FastAPI 源码学习 Python 的教程与练习
+
+**学习重点：**
+- 装饰器、闭包和路由注册
+- URL resolver、注册表和中间件链
+- 类型注解、`inspect` 和依赖注入
+- descriptor、懒加载配置和 metaclass
+- sync/async 边界和资源清理
+
+### 📁 09-networking - 网络请求
+学习 Python 标准库 `urllib.request` 的 HTTP 请求模型，并通过 MaaS Claude Messages API 示例理解真实 API 调用。
+
+**文件列表：**
+- `README.md` - `urllib.request` 网络请求教程
+- `urllib_request_tutorial.py` - 使用环境变量调用 Claude Messages API 的可运行示例
+
+**学习重点：**
+- URL、method、headers、body 和 response 的关系
+- GET 请求和 POST JSON 请求
+- 从环境变量读取 base URL 和 API key
+- `HTTPError`、`URLError` 和 timeout 的处理
+
+### 📁 10-error-handle - 错误处理
+学习基础异常、自定义异常、错误码、上下文管理器和 SDK 错误边界。
+
+**文件列表：**
+- `README.md` - 错误处理学习路径
+- `basics.py` - 基础异常处理示例
+- `context_manager.py` - 上下文管理器和资源释放
+- `sdk_example.py` - SDK 风格异常体系
+
+### 📁 11-concurrency - 并发和异步
+学习线程、进程、`asyncio`、队列、超时和 worker pipeline。
+
+**文件列表：**
+- `README.md` - 并发学习指南
+- `asyncio_pipeline.py` - 异步任务流水线示例
+
+### 📁 12-web-backend - Web 后端开发
+学习 FastAPI 后端项目结构、请求模型、响应模型和错误返回。
+
+**文件列表：**
+- `README.md` - Web 后端学习指南
+- `fastapi_app.py` - 最小 FastAPI 应用示例
+
+### 📁 13-data-science - 数据分析和机器学习基础
+学习 pandas 数据清洗、聚合、特征生成和机器学习前置知识。
+
+**文件列表：**
+- `README.md` - 数据分析学习指南
+- `pandas_workflow.py` - pandas 清洗和聚合示例
+
+### 📁 14-ai-applications - AI 应用工程
+学习 LLM API、embedding、RAG、检索、结构化输出和 AI 应用测试。
+
+**文件列表：**
+- `README.md` - AI 应用工程学习指南
+- `rag_pipeline.py` - 不依赖外部服务的玩具 RAG 示例
+
+### 📁 15-security-observability - 安全和可观测性
+学习密钥保护、日志脱敏、输入校验、健康检查和排障信息设计。
+
+**文件列表：**
+- `README.md` - 安全和可观测性学习指南
+- `logging_security.py` - 日志脱敏和 URL 校验示例
+
+### 📁 16-capstone-project - 综合项目
+把 Web API、数据库、检索、LLM、测试和部署串成一个 AI 知识库服务。
+
+**文件列表：**
+- `README.md` - 综合项目路线
+- `app_skeleton.py` - 标准库版端到端骨架
+
+### 📁 requirements - 依赖清单
+按学习方向拆分依赖，避免一开始安装全部重依赖。
+
+**文件列表：**
+- `base.txt` - 通用依赖
+- `web.txt` - Web 后端依赖
+- `data.txt` - 数据分析依赖
+- `ai.txt` - AI 和深度学习依赖
+- `dev.txt` - 测试和质量工具
+
 ## 学习路径建议
 
-1. **Python 基础** → 从 `03-python-basics` 开始
-2. **类型系统** → 进入 `01-type-system` 学习高级类型特性
-3. **数据库操作** → 学习 `02-database` 中的 SQLAlchemy 和向量数据库
-4. **API 集成** → 探索 `04-api-integration` 中的第三方 API
-5. **容器化** → 了解 `05-devops` 中的部署知识
+1. **环境和项目结构** → 从 `00-environment` 建立依赖、配置和运行入口意识
+2. **Python 基础** → 学习 `03-python-basics` 和标准库
+3. **类型系统和错误处理** → 学习 `01-type-system` 与 `10-error-handle`
+4. **测试、网络和并发** → 学习 `06-tools-and-tests`、`09-networking`、`11-concurrency`
+5. **数据库和 Web 后端** → 学习 `02-database`、`12-web-backend`
+6. **数据、深度学习和 AI 应用** → 学习 `13-data-science`、`07-deep-learning`、`14-ai-applications`
+7. **部署、安全和综合项目** → 学习 `05-devops`、`15-security-observability`、`16-capstone-project`
+8. **框架源码** → 通过 `08-frameworks` 阅读 Django/FastAPI 源码，理解大型项目设计
 
 ## 使用说明
 
@@ -131,7 +233,7 @@ PyTorch 深度学习从基础到实战的完整教程。
 
 - Python 3.9+
 - 虚拟环境：`~/.virtualenvs/ML/`
-- 相关依赖请查看各模块的具体文件
+- 相关依赖请查看 `requirements/`
 
 ## 贡献
 

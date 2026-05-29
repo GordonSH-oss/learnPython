@@ -6,6 +6,7 @@
 
 ### 文件
 - `openai_demo.py` - OpenAI API 使用示例
+- `resilient_api_client.py` - 可测试的 API 客户端骨架，演示超时、重试和错误边界
 - `.env.example` - 环境变量配置示例
 - `.env` - 实际配置文件（不会被提交到 Git）
 
@@ -29,6 +30,7 @@ pip install openai python-dotenv
 #### 3. 运行示例
 ```bash
 python openai_demo.py
+python resilient_api_client.py
 ```
 
 ### 内容

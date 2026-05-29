@@ -1,0 +1,7 @@
+-r base.txt
+-r data.txt
+
+openai>=1.0
+torch>=2.2
+torchvision>=0.17
+torchaudio>=2.2

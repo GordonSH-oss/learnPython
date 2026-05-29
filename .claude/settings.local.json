@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python basics.py)",
+      "Bash(python context_manager.py)"
+    ]
+  }
+}

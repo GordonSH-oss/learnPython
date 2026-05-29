@@ -32,6 +32,7 @@
 ### 6. 其他
 - `instantiation_demo.py` - 类实例化演示
 - `type_annotation_usefulness.py` - 类型注解的实际用途
+- `advanced_typing.py` - `Protocol`、`TypedDict`、`Literal`、`overload` 等工程常用高级类型
 
 ## 学习顺序建议
 
@@ -42,6 +43,7 @@
 5. `generic_invariance_explanation.py` - 泛型
 6. `typevar_bound_explanation.py` - TypeVar 基础
 7. `typevar_usage_scenarios.py` - TypeVar 高级用法
+8. `advanced_typing.py` - 工程常用高级类型
 
 ## 工具推荐
 

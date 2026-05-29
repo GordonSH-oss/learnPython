@@ -1,158 +1,67 @@
 # 快速查找索引
 
-这是一个快速查找文件的索引，按字母顺序排列。
+这是一个快速查找文件的索引，按主题和常见问题组织。第三方框架源码目录只列入口，不展开全部源码文件。
 
-## A
+## 入口文件
 
-- `add.py` → `06-tools-and-tests/`
-- `ADD_DATA_GUIDE.md` → `02-database/`
-- `analyze_md.py` → `06-tools-and-tests/`
-
-## C
-
-- `chunking.py` → `06-tools-and-tests/`
-- `config.yaml` → `05-devops/`
-- `container/` → `05-devops/`
-
-## D
-
-- `data_class.py` → `03-python-basics/`
-- `database.py` → `02-database/`
-- `decorators.py` → `03-python-basics/`
-- `docker-compose.yml` → `05-devops/`
-- `DUPLICATE_INSERT_EXPLANATION.md` → `02-database/`
-
-## E
-
-- `example.db` → `02-database/`
-
-## F
-
-- `forward_reference_example.py` → `01-type-system/`
-- `FORWARD_REFERENCE.md` → `01-type-system/`
-
-## G
-
-- `generic_invariance_explanation.py` → `01-type-system/`
-
-## I
-
-- `instantiation_demo.py` → `01-type-system/`
-
-## L
-
-- `learn_typing.py` → `01-type-system/`
-- `LINKED_LIST_INITIALIZATION.md` → `03-python-basics/`
-
-## M
-
-- `multiple_dispatch.py` → `03-python-basics/`
-- `milvus_add_new_data.py` → `02-database/`
-- `milvus_data/` → `05-devops/`
-- `milvus_demo.db` → `02-database/`
-- `milvus_search.py` → `02-database/`
-- `milvus_use.py` → `02-database/`
-- `MULTIPLEDISPATCH.md` → `03-python-basics/`
-- `MILVUS_PERSISTENCE.md` → `02-database/`
-- `MILVUS_SCHEMA_EXPLANATION.md` → `02-database/`
-- `MILVUS_SETUP.md` → `02-database/`
-
-## O
-
-- `objectname.md` → `06-tools-and-tests/`
-- `openai_demo.py` → `04-api-integration/`
-
-## P
-
-- `persistence_example.py` → `02-database/`
-- `PERSISTENCE_COMPARISON.md` → `02-database/`
-
-## R
-
-- `runtime_vs_type_checking.py` → `01-type-system/`
-- `RUNTIME_VS_TYPE_CHECKING.md` → `01-type-system/`
-
-## S
-
-- `SINGLEDISPATCH.md` → `03-python-basics/`
-- `self_examples.py` → `03-python-basics/`
-- `SELF_EXPLANATION.md` → `03-python-basics/`
-- `singledispatch.py` → `03-python-basics/`
-- `slice_explanation.py` → `03-python-basics/`
-- `sqlalchemy_example.py` → `02-database/`
-- `sqlalchemy_tutorial.py` → `02-database/`
-- `SQLALCHEMY_QUICK_REFERENCE.md` → `02-database/`
-- `structure_output.json` → `06-tools-and-tests/`
-
-## T
-
-- `test.py` → `06-tools-and-tests/`
-- `test.txt` → `06-tools-and-tests/`
-- `test.yaml` → `06-tools-and-tests/`
-- `test_duplicate_insert.py` → `02-database/`
-- `test_import.py` → `06-tools-and-tests/`
-- `test_persistence.py` → `02-database/`
-- `tuple_equality_explanation.py` → `03-python-basics/`
-- `tuple_immutability_explanation.py` → `03-python-basics/`
-- `tutorial.db` → `02-database/`
-- `type_annotation_usefulness.py` → `01-type-system/`
-- `typevar_bound_explanation.py` → `01-type-system/`
-- `typevar_usage_scenarios.py` → `01-type-system/`
-
-## U
-
-- `use_chunking.py` → `06-tools-and-tests/`
-- `use_milvus_with_schema.py` → `02-database/`
-
-## V
-
-- `volumes/` → `05-devops/`
-- `VOLUMES_EXPLANATION.md` → `02-database/`
-
----
+- `README.md` - 仓库总览和学习路径
+- `STRUCTURE.md` - 目录结构说明
+- `LEARNING_GAPS.md` - Python 全栈 + AI 学习缺口矩阵
+- `requirements/` - 分主题依赖清单
 
 ## 按主题查找
 
-### 类型系统相关
+### 环境和依赖
 ```
-01-type-system/
-├── forward_reference_example.py
-├── generic_invariance_explanation.py
-├── instantiation_demo.py
-├── learn_typing.py
-├── runtime_vs_type_checking.py
-├── type_annotation_usefulness.py
-├── typevar_bound_explanation.py
-└── typevar_usage_scenarios.py
+00-environment/
+├── README.md
+└── config_example.py
+
+requirements/
+├── base.txt
+├── web.txt
+├── data.txt
+├── ai.txt
+└── dev.txt
 ```
 
-### 数据库相关
+### 类型系统
+```
+01-type-system/
+├── learn_typing.py
+├── type_annotation_usefulness.py
+├── forward_reference_example.py
+├── runtime_vs_type_checking.py
+├── generic_invariance_explanation.py
+├── typevar_bound_explanation.py
+├── typevar_usage_scenarios.py
+└── advanced_typing.py
+```
+
+### 数据库
 ```
 02-database/
 ├── SQLAlchemy: database.py, sqlalchemy_example.py, sqlalchemy_tutorial.py
-├── Milvus: milvus_*.py, use_milvus_with_schema.py
+├── Milvus: milvus_use.py, milvus_search.py, milvus_add_new_data.py, use_milvus_with_schema.py
 └── 测试: test_duplicate_insert.py, test_persistence.py
 ```
 
 ### Python 基础
 ```
 03-python-basics/
-├── data_class.py
-├── decorators.py
-├── multiple_dispatch.py
-├── singledispatch.py
-├── MULTIPLEDISPATCH.md
-├── self_examples.py
-├── SINGLEDISPATCH.md
-├── slice_explanation.py
-├── tuple_equality_explanation.py
-└── tuple_immutability_explanation.py
+├── OOP: self_examples.py, polymorphism.py, decorators.py
+├── 函数和分派: args_and_kwargs.py, singledispatch.py, multiple_dispatch.py
+├── 数据模型: data_class.py, slice_explanation.py, special-methods/
+├── 迭代和生成器: generator-comprehension/
+├── 数据校验: pydantic/
+└── 标准库: standard_library_tour.py, bz2_compression.py
 ```
 
 ### API 集成
 ```
 04-api-integration/
-└── openai_demo.py
+├── openai_demo.py
+└── resilient_api_client.py
 ```
 
 ### DevOps
@@ -160,46 +69,122 @@
 05-devops/
 ├── docker-compose.yml
 ├── config.yaml
-└── 数据目录: container/, volumes/, milvus_data/
+└── container/
 ```
 
 ### 工具和测试
 ```
 06-tools-and-tests/
-├── 测试: test.py, test_import.py
-└── 工具: add.py, analyze_md.py, chunking.py, use_chunking.py
+├── add.py
+├── analyze_md.py
+├── chunking.py
+├── markdown_retrieval.py
+├── use_chunking.py
+├── test.py
+└── test_import.py
 ```
 
----
+### 深度学习
+```
+07-deep-learning/
+├── 数学: LINEAR_ALGEBRA_IN_DL.md, linear_algebra_practice.py
+├── PyTorch 基础: pytorch_basics.py, tensors.py, autograd.py
+├── 训练: neural_networks.py, training_loop.py, datasets_dataloaders.py
+└── 项目: linear_regression.py, image_classification.py, cnn_mnist.py, transfer_learning.py
+```
+
+### 框架源码
+```
+08-frameworks/
+├── README.md
+├── PYTHON_FRAMEWORK_SOURCE_LEARNING.md
+├── django/
+└── fastapi/
+```
+
+### 网络、错误、并发
+```
+09-networking/
+├── README.md
+└── urllib_request_tutorial.py
+
+10-error-handle/
+├── README.md
+├── basics.py
+├── context_manager.py
+└── sdk_example.py
+
+11-concurrency/
+├── README.md
+└── asyncio_pipeline.py
+```
+
+### 全栈 + AI
+```
+12-web-backend/
+├── README.md
+└── fastapi_app.py
+
+13-data-science/
+├── README.md
+└── pandas_workflow.py
+
+14-ai-applications/
+├── README.md
+└── rag_pipeline.py
+
+15-security-observability/
+├── README.md
+└── logging_security.py
+
+16-capstone-project/
+├── README.md
+└── app_skeleton.py
+```
 
 ## 常见搜索
 
+**Q: 从哪里开始补齐 Python 学习路线？**  
+A: 先看 `LEARNING_GAPS.md`，再从 `00-environment/README.md` 开始。
+
 **Q: 在哪学习类型注解？**  
-A: `01-type-system/learn_typing.py` 和 `01-type-system/type_annotation_usefulness.py`
+A: `01-type-system/learn_typing.py`、`01-type-system/type_annotation_usefulness.py`、`01-type-system/advanced_typing.py`。
 
 **Q: 如何使用 SQLAlchemy？**  
-A: `02-database/sqlalchemy_tutorial.py` 有完整教程
+A: `02-database/sqlalchemy_tutorial.py` 和 `02-database/SQLALCHEMY_QUICK_REFERENCE.md`。
 
 **Q: Milvus 怎么用？**  
-A: 从 `02-database/MILVUS_SETUP.md` 开始，然后看 `milvus_use.py`
+A: 从 `02-database/MILVUS_SETUP.md` 开始，然后看 `02-database/milvus_use.py`。
 
-**Q: self 关键字是什么？**  
-A: `03-python-basics/SELF_EXPLANATION.md` 有详细说明
+**Q: self、装饰器、多态在哪里？**  
+A: `03-python-basics/SELF_EXPLANATION.md`、`03-python-basics/decorators.py`、`03-python-basics/polymorphism.py`。
 
-**Q: 带参数的装饰器应该怎么写？**  
-A: `03-python-basics/decorators.py`
+**Q: 如何写带重试和错误边界的 API 客户端？**  
+A: `04-api-integration/resilient_api_client.py`。
 
-**Q: 如何按参数类型自动调用不同函数实现？**  
-A: `03-python-basics/singledispatch.py` 和 `03-python-basics/SINGLEDISPATCH.md`
+**Q: 如何不用 SDK，直接用 Python 标准库发送 HTTP 请求？**  
+A: `09-networking/README.md` 和 `09-networking/urllib_request_tutorial.py`。
 
-**Q: 如果要按多个参数的类型组合分派呢？**  
-A: `03-python-basics/multiple_dispatch.py` 和 `03-python-basics/MULTIPLEDISPATCH.md`
+**Q: 如何处理异常和自定义错误码？**  
+A: `10-error-handle/README.md` 和 `10-error-handle/sdk_example.py`。
 
-**Q: 如何调用 OpenAI API？**  
-A: `04-api-integration/openai_demo.py`
+**Q: 如何学习 asyncio 并发？**  
+A: `11-concurrency/asyncio_pipeline.py`。
 
-**Q: Docker 配置在哪？**  
-A: `05-devops/docker-compose.yml`
+**Q: 如何从零搭一个 FastAPI 后端？**  
+A: `12-web-backend/README.md` 和 `12-web-backend/fastapi_app.py`。
 
-**Q: 测试文件在哪？**  
-A: `06-tools-and-tests/` 目录下所有 `test_*.py` 文件
+**Q: 如何做 pandas 数据清洗？**  
+A: `13-data-science/pandas_workflow.py`。
+
+**Q: 如何理解 RAG 的基本数据流？**  
+A: `14-ai-applications/rag_pipeline.py`。
+
+**Q: 如何学习日志脱敏和输入校验？**  
+A: `15-security-observability/logging_security.py`。
+
+**Q: 如何做端到端综合项目？**  
+A: `16-capstone-project/README.md` 和 `16-capstone-project/app_skeleton.py`。
+
+**Q: 如何通过 Django 和 FastAPI 源码学习 Python 进阶知识？**  
+A: `08-frameworks/PYTHON_FRAMEWORK_SOURCE_LEARNING.md`。

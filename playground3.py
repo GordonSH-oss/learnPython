@@ -1,10 +1,11 @@
-# #!/usr/bin/env python3
-import iterm2
+from enum import Enum
 
-async def main(connection):
-    app = await iterm2.async_get_app(connection)
-    session = app.current_terminal_window.current_tab.current_session
-    await session.async_send_text("ncdocs\nnpm start\n")
+class ErrCode(Enum):
+    # 右侧是列表
+    TYPE_ERR = (1001, "参数类型错误")
+    TIME_OUT = (2001, "请求超时")
 
-iterm2.run_until_complete(main)
+    def __init__(self, code, msg):
+        self.code = code
+        self.msg = msg
 

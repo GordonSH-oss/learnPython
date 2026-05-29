@@ -40,6 +40,13 @@ Markdown 文件分析工具。
 - 重叠分块
 - 语义分块
 
+### markdown_retrieval.py
+Markdown 检索辅助工具，用于：
+- 按标题切分 Markdown 文档
+- 过滤只有标题、没有正文的 chunk
+- 计算词面匹配分数
+- 与向量相似度组成 hybrid score
+
 ## 数据文件
 
 ### objectname.md
