@@ -1,0 +1,82 @@
+{% extends "learning/base.html" %}
+
+{% block title %}课程首页 - Source Lens{% endblock %}
+
+{% block content %}
+  <section class="page-head">
+    <div>
+      <p class="eyebrow">Django 源码 + 实战</p>
+      <h1>课程首页</h1>
+      <p>按核心机制学习 Django：先看可运行页面，再回到本地源码验证真实实现。</p>
+    </div>
+    <div class="stats">
+      <div>
+        <span class="stat-value">{{ done_steps }}</span>
+        <span class="stat-label">已完成步骤</span>
+      </div>
+      <div>
+        <span class="stat-value">{{ total_steps }}</span>
+        <span class="stat-label">课程步骤</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="request-panel">
+    <h2>当前请求快照</h2>
+    <dl class="kv">
+      <div><dt>method</dt><dd>{{ request_snapshot.method }}</dd></div>
+      <div><dt>path</dt><dd>{{ request_snapshot.path }}</dd></div>
+      <div><dt>query</dt><dd>{{ request_snapshot.query_string|default:"empty" }}</dd></div>
+      <div><dt>middleware</dt><dd>{{ request_snapshot.middleware_seen }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="section-head">
+    <h2>课程模块</h2>
+  </section>
+  <section class="topic-grid">
+    {% for card in topic_cards %}
+      {% with topic=card.topic %}
+      <article class="topic-card">
+        <div class="card-head">
+          <h2><a href="{{ topic.get_absolute_url }}">{{ topic.title }}</a></h2>
+          <span class="pill">{{ card.progress }}%</span>
+        </div>
+        <p>{{ topic.summary }}</p>
+        <p class="source-path">{{ topic.source_file }}</p>
+        <p class="muted">{{ card.lesson_count }} 节课 · {{ card.project_count }} 个项目</p>
+        <div class="progress" aria-label="{{ card.progress }} percent complete">
+          <span style="width: {{ card.progress }}%"></span>
+        </div>
+      </article>
+      {% endwith %}
+    {% empty %}
+      <section class="empty-state">
+        <h2>还没有课程</h2>
+        <p>Run <code>python manage.py seed_lessons</code> to load the practice data.</p>
+      </section>
+    {% endfor %}
+  </section>
+
+  <section class="section-head">
+    <h2>内置 mini project</h2>
+  </section>
+  <section class="topic-grid">
+    {% for card in project_cards %}
+      {% with project=card.project %}
+      <article class="topic-card">
+        <div class="card-head">
+          <h2><a href="{{ project.get_absolute_url }}">{{ project.title }}</a></h2>
+          <span class="pill">{{ card.progress }}%</span>
+        </div>
+        <p>{{ project.summary }}</p>
+        <p class="source-path">{{ project.source_file }}</p>
+        <p class="muted">{{ card.task_count }} 个任务</p>
+        <div class="progress" aria-label="{{ card.progress }} percent complete">
+          <span style="width: {{ card.progress }}%"></span>
+        </div>
+      </article>
+      {% endwith %}
+    {% endfor %}
+  </section>
+{% endblock %}

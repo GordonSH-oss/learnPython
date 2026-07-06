@@ -1,0 +1,60 @@
+{% extends "learning/base.html" %}
+
+{% block title %}我的进度 - Source Lens{% endblock %}
+
+{% block content %}
+  <section class="page-head">
+    <div>
+      <p class="eyebrow">{{ user.username }}</p>
+      <h1>我的进度</h1>
+      <p>这里按用户记录课程步骤、mini project 任务和学习笔记。</p>
+    </div>
+  </section>
+
+  <section class="section-head"><h2>课程模块</h2></section>
+  <section class="topic-grid">
+    {% for card in topic_cards %}
+      {% with topic=card.topic %}
+      <article class="topic-card">
+        <div class="card-head">
+          <h2><a href="{{ topic.get_absolute_url }}">{{ topic.title }}</a></h2>
+          <span class="pill">{{ card.progress }}%</span>
+        </div>
+        <p>{{ topic.summary }}</p>
+        <div class="progress"><span style="width: {{ card.progress }}%"></span></div>
+      </article>
+      {% endwith %}
+    {% endfor %}
+  </section>
+
+  <section class="section-head"><h2>Mini project</h2></section>
+  <section class="topic-grid">
+    {% for card in project_cards %}
+      {% with project=card.project %}
+      <article class="topic-card">
+        <div class="card-head">
+          <h2><a href="{{ project.get_absolute_url }}">{{ project.title }}</a></h2>
+          <span class="pill">{{ card.progress }}%</span>
+        </div>
+        <p>{{ project.summary }}</p>
+        <div class="progress"><span style="width: {{ card.progress }}%"></span></div>
+      </article>
+      {% endwith %}
+    {% endfor %}
+  </section>
+
+  <section class="panel">
+    <h2>最近笔记</h2>
+    <div class="log-list">
+      {% for log in logs %}
+        <article class="log-entry">
+          <p>{{ log.note }}</p>
+          <time>{{ log.created_at|date:"Y-m-d H:i" }}</time>
+          <span>{{ log.exercise.title }}</span>
+        </article>
+      {% empty %}
+        <p>还没有学习笔记。</p>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}

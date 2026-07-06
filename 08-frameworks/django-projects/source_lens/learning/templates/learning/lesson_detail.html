@@ -1,0 +1,67 @@
+{% extends "learning/base.html" %}
+
+{% block title %}{{ lesson.title }} - Source Lens{% endblock %}
+
+{% block content %}
+  <section class="page-head">
+    <div>
+      <p class="eyebrow"><a href="{{ lesson.topic.get_absolute_url }}">{{ lesson.topic }}</a></p>
+      <h1>{{ lesson.title }}</h1>
+      <p>{{ lesson.summary }}</p>
+      <p>{{ lesson.explanation }}</p>
+      <p class="source-path">{{ lesson.source_file }} · {{ lesson.source_symbol }}</p>
+    </div>
+    <span class="pill large">{{ progress }}%</span>
+  </section>
+
+  {% if not user.is_authenticated %}
+    <section class="request-panel">
+      <h2>登录后记录进度</h2>
+      <p>课程内容可以直接阅读。完成状态、练习状态和笔记需要登录后保存。</p>
+      <p><a href="{% url 'learning:login' %}?next={{ request.path }}">登录</a> · <a href="{% url 'learning:register' %}">注册</a></p>
+    </section>
+  {% endif %}
+
+  <section class="exercise-list">
+    {% for step in lesson.steps.all %}
+      <article class="exercise-row step-row">
+        <div>
+          <h2>{{ step.order }}. {{ step.title }}</h2>
+          <p>{{ step.body }}</p>
+          <p><strong>动手：</strong>{{ step.action }}</p>
+          <p><strong>检查点：</strong>{{ step.checkpoint }}</p>
+          <p class="source-path">{{ step.source_file }} · {{ step.source_symbol }}</p>
+
+          {% for exercise in step.exercises.all %}
+            <div class="inline-exercise">
+              <h3><a href="{{ exercise.get_absolute_url }}">{{ exercise.title }}</a></h3>
+              <p>{{ exercise.prompt }}</p>
+              <form method="post" action="{% url 'learning:set-exercise-progress' exercise.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <select name="status" {% if not user.is_authenticated %}disabled{% endif %}>
+                  <option value="todo" {% if exercise.user_status == "todo" %}selected{% endif %}>Todo</option>
+                  <option value="doing" {% if exercise.user_status == "doing" %}selected{% endif %}>Doing</option>
+                  <option value="done" {% if exercise.user_status == "done" %}selected{% endif %}>Done</option>
+                </select>
+                <button type="submit" {% if not user.is_authenticated %}disabled{% endif %}>保存练习状态</button>
+              </form>
+            </div>
+          {% endfor %}
+        </div>
+        <div class="row-meta">
+          {% if step.id in completed_step_ids %}
+            <span class="status done">已完成</span>
+          {% else %}
+            <span class="status todo">未完成</span>
+          {% endif %}
+          <form method="post" action="{% url 'learning:toggle-step' step.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <button type="submit" {% if not user.is_authenticated %}disabled{% endif %}>切换完成</button>
+          </form>
+        </div>
+      </article>
+    {% endfor %}
+  </section>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "learning/base.html" %}
+
+{% block title %}登录 - Source Lens{% endblock %}
+
+{% block content %}
+  <section class="auth-panel">
+    <h1>登录</h1>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button type="submit">登录</button>
+    </form>
+    <p class="muted">还没有账号？<a href="{% url 'learning:register' %}">注册一个本地学习账号</a></p>
+  </section>
+{% endblock %}

@@ -1,65 +1,37 @@
-class Test:
+import types
+
+class User:
+    # 1. 这是一个类属性（属于类）
+    species = "Human"
+
     def __init__(self, name):
+        # 2. 这是一个实例属性（属于每个独立的实例）
         self.name = name
 
-    def greet(self):
-        return f"Hello, {self.name}!"
-    
-    def __getattr__(self, name):
-        print(f"进入 __getattr__，属性 {name} 不存在")
-        return f"默认值:{name}"
+    # 3. 这是一个在类里正常定义的方法
+    def class_say_hi(self, words):
+        print(f"{self.name}: {words}")
+
+# 实例化一个对象
+user_instance = User("张三")
+
+# 4. 动态给这个【实例】添加一个属性和方法
+user_instance.dynamic_attr = "New Property"
+
+def extra_func(self):
+    print("我是动态绑定的方法")
+user_instance.dynamic_method = types.MethodType(extra_func, user_instance)
 
 
-import json
-import os
-import sys
-from pathlib import Path
-from urllib import error, request
+# ==========================================
+# 核心对比：打印两个字典
+# ==========================================
+print("--- 1. 实例对象的 dict (user_instance.__dict__) ---")
+for key, value in user_instance.__dict__.items():
+    print(f"键: {key:<15} -> 值类型/内容: {value}")
 
-
-TOOLS_DIR = Path(__file__).resolve().parent / "06-tools-and-tests"
-if str(TOOLS_DIR) not in sys.path:
-    sys.path.insert(0, str(TOOLS_DIR))
-
-from markdown_retrieval import hybrid_score, lexical_overlap_score, load_docs
-
-
-def call_claude(prompt: str) -> str:
-    base_url = os.environ["MAAS_BASE_URL"].rstrip("/")
-    api_key = os.environ["MAAS_API_KEY"]
-
-    payload = {
-        "model": "claude-sonnet-4-6",
-        "max_tokens": 1024,
-        "messages": [
-            {
-                "role": "user",
-                "content": prompt,
-            }
-        ],
-    }
-
-    req = request.Request(
-        url=f"{base_url}/v1/messages",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        },
-        method="POST",
-    )
-
-    try:
-        with request.urlopen(req, timeout=60) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-    except error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"API request failed: HTTP {exc.code} {body}") from exc
-
-    return result["content"][0]["text"]
-
-
-if __name__ == "__main__":
-    answer = call_claude("请用一句话介绍 Python 的 __getattr__。")
-    print(answer)
+print("\n--- 2. 类对象的 dict (User.__dict__) ---")
+for key, value in User.__dict__.items():
+    # 过滤掉系统自带的下划线属性，只看我们自己定义的
+    if not key.startswith("__") or key == "__init__":
+        print(f"键: {key:<15} -> 值类型/内容: {value}")

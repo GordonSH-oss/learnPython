@@ -1,0 +1,61 @@
+{% extends "learning/base.html" %}
+
+{% block title %}{{ topic.title }} - Source Lens{% endblock %}
+
+{% block content %}
+  <section class="page-head">
+    <div>
+      <p class="eyebrow">{{ topic.source_symbol|default:"source module" }}</p>
+      <h1>{{ topic.title }}</h1>
+      <p>{{ topic.summary }}</p>
+      <p class="source-path">{{ topic.source_file }}</p>
+    </div>
+    <span class="pill large">{{ progress }}%</span>
+  </section>
+
+  <section class="section-head">
+    <h2>课程</h2>
+  </section>
+  <section class="exercise-list">
+    {% for card in lesson_cards %}
+      {% with lesson=card.lesson %}
+      <article class="exercise-row">
+        <div>
+          <h2><a href="{{ lesson.get_absolute_url }}">{{ lesson.title }}</a></h2>
+          <p>{{ lesson.summary }}</p>
+          <p class="source-path">{{ lesson.source_file }}</p>
+        </div>
+        <div class="row-meta">
+          <span class="tag">{{ card.step_count }} 步</span>
+          <span class="pill">{{ card.progress }}%</span>
+        </div>
+      </article>
+      {% endwith %}
+    {% empty %}
+      <p>这个模块还没有课程。</p>
+    {% endfor %}
+  </section>
+
+  <section class="section-head">
+    <h2>相关 mini project</h2>
+  </section>
+  <section class="exercise-list">
+    {% for card in project_cards %}
+      {% with project=card.project %}
+      <article class="exercise-row">
+        <div>
+          <h2><a href="{{ project.get_absolute_url }}">{{ project.title }}</a></h2>
+          <p>{{ project.summary }}</p>
+          <p class="source-path">{{ project.source_file }}</p>
+        </div>
+        <div class="row-meta">
+          <span class="tag">{{ card.task_count }} 任务</span>
+          <span class="pill">{{ card.progress }}%</span>
+        </div>
+      </article>
+      {% endwith %}
+    {% empty %}
+      <p>这个模块还没有 mini project。</p>
+    {% endfor %}
+  </section>
+{% endblock %}

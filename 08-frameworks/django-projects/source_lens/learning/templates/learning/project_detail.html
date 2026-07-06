@@ -1,0 +1,57 @@
+{% extends "learning/base.html" %}
+
+{% block title %}{{ project.title }} - Source Lens{% endblock %}
+
+{% block content %}
+  <section class="page-head">
+    <div>
+      <p class="eyebrow">{{ project.source_symbol|default:"mini project" }}</p>
+      <h1>{{ project.title }}</h1>
+      <p>{{ project.summary }}</p>
+      <p>{{ project.objective }}</p>
+      <p class="source-path">{{ project.source_file }}</p>
+    </div>
+    <span class="pill large">{{ progress }}%</span>
+  </section>
+
+  <section class="request-panel">
+    <h2>Lab payload</h2>
+    <dl class="kv compact">
+      {% for key, value in lab_payload.items %}
+        <div><dt>{{ key }}</dt><dd>{{ value }}</dd></div>
+      {% endfor %}
+    </dl>
+  </section>
+
+  {% if not user.is_authenticated %}
+    <section class="request-panel">
+      <h2>登录后记录任务</h2>
+      <p><a href="{% url 'learning:login' %}?next={{ request.path }}">登录</a> 后可以切换任务完成状态。</p>
+    </section>
+  {% endif %}
+
+  <section class="exercise-list">
+    {% for task in project.tasks.all %}
+      <article class="exercise-row">
+        <div>
+          <h2>{{ task.order }}. {{ task.title }}</h2>
+          <p>{{ task.prompt }}</p>
+          <p><strong>下一步：</strong>{{ task.next_action }}</p>
+          <p class="source-path">{{ task.source_hint }}</p>
+        </div>
+        <div class="row-meta">
+          {% if task.id in completed_task_ids %}
+            <span class="status done">已完成</span>
+          {% else %}
+            <span class="status todo">未完成</span>
+          {% endif %}
+          <form method="post" action="{% url 'learning:toggle-project-task' task.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <button type="submit" {% if not user.is_authenticated %}disabled{% endif %}>切换完成</button>
+          </form>
+        </div>
+      </article>
+    {% endfor %}
+  </section>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Source Lens{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'learning/styles.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{% url 'learning:dashboard' %}">Source Lens</a>
+    <nav class="nav">
+      <a href="{% url 'learning:dashboard' %}">课程</a>
+      <a href="{% url 'learning:request-echo' %}?from=nav">Request Echo</a>
+      {% if user.is_authenticated %}
+        <a href="{% url 'learning:progress' %}">我的进度</a>
+        <form class="logout-form" action="{% url 'learning:logout' %}" method="post">
+          {% csrf_token %}
+          <button type="submit">退出</button>
+        </form>
+      {% else %}
+        <a href="{% url 'learning:login' %}">登录</a>
+        <a href="{% url 'learning:register' %}">注册</a>
+      {% endif %}
+      <a href="/admin/">Admin</a>
+    </nav>
+  </header>
+
+  <main class="shell">
+    {% if messages %}
+      <div class="messages">
+        {% for message in messages %}
+          <p class="message {{ message.tags }}">{{ message }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
