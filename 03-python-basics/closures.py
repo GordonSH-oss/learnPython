@@ -90,7 +90,89 @@ print(c())   # 3
 
 
 # ============================================================
-# 示例 5：用类实现相同效果（对比）
+# 示例 5：循环里创建函数的坑 —— late binding
+# ============================================================
+#
+# playground.py 里的写法会全部输出 2：
+#
+# func_list = []
+# for i in range(3):
+#     def func():
+#         print(i)
+#     func_list.append(func)
+#
+# 原因不是 append 有问题，而是函数体里的 i 会在“调用函数时”才查找。
+# 循环结束后 i 已经是 2，所以所有函数读到的都是同一个 i。
+#
+# 注意：如果这段代码写在模块顶层，i 是全局变量，不算闭包变量；
+# 如果写在外层函数里，i 就是被闭包捕获的自由变量。
+# 两者的关键都一样：函数捕获/引用的是变量绑定，不是当时的值。
+
+def build_printers_wrong():
+    printers = []
+    for i in range(3):
+        def printer():
+            return i       # 调用时才读取 i
+        printers.append(printer)
+    return printers
+
+
+print("\n=== 示例 5：循环闭包的 late binding 问题 ===")
+wrong_printers = build_printers_wrong()
+print([printer() for printer in wrong_printers])   # [2, 2, 2]
+
+# 可以检查一下：这些函数捕获的自由变量名都是 i。
+print("捕获的变量名:", wrong_printers[0].__code__.co_freevars)  # ('i',)
+
+
+# ============================================================
+# 示例 6：修复 late binding —— 把当前值固定下来
+# ============================================================
+#
+# 修法 1：默认参数
+# 默认参数会在 def 执行时求值，因此 i=i 会把当轮循环的 i 固定到参数里。
+# 这时 i 不再是自由变量，而是函数自己的默认参数。
+
+def build_printers_with_default_arg():
+    printers = []
+    for i in range(3):
+        def printer(i=i):
+            return i
+        printers.append(printer)
+    return printers
+
+
+print("\n=== 示例 6.1：用默认参数固定当前值 ===")
+default_arg_printers = build_printers_with_default_arg()
+print([printer() for printer in default_arg_printers])  # [0, 1, 2]
+print("默认参数:", [printer.__defaults__ for printer in default_arg_printers])
+
+
+# 修法 2：工厂函数
+# 每次调用 make_printer(value) 都会创建一个新的局部变量 value，
+# 因此每个返回的 printer 都捕获自己的 value。
+
+def make_printer(value):
+    def printer():
+        return value
+    return printer
+
+
+def build_printers_with_factory():
+    printers = []
+    for i in range(3):
+        printers.append(make_printer(i))
+    return printers
+
+
+print("\n=== 示例 6.2：用工厂函数创建独立闭包 ===")
+factory_printers = build_printers_with_factory()
+print([printer() for printer in factory_printers])  # [0, 1, 2]
+print("捕获的变量值:", [printer.__closure__[0].cell_contents for printer in factory_printers])
+
+
+# ============================================================
+# 示例 7：用类实现相同效果（对比）
 # ============================================================
 #
 # 闭包本质上是轻量级的对象：
@@ -107,7 +189,7 @@ class Averager:
         return sum(self._series) / len(self._series)
 
 
-print("\n=== 示例 5：类实现相同效果（对比）===")
+print("\n=== 示例 7：类实现相同效果（对比）===")
 avg_obj = Averager()
 print(avg_obj(10))   # 10.0
 print(avg_obj(11))   # 10.5

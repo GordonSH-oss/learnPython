@@ -1,9 +1,10 @@
-try:
-    num = int(input("输入数字："))
-except ValueError:
-    print("输入不是数字")
-else:
-    # 只有转数字成功才执行
-    print("转换成功，数字：", num)
-finally:
-    print("我一定会执行")
+func_list = []
+for i in range(3):
+    def func():
+        print(i)
+    func_list.append(func)
+
+# 循环结束 i = 2
+for f in func_list:
+    f()
+# 输出全部是 2，而不是 0 1 2
