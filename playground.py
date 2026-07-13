@@ -1,10 +1,18 @@
-func_list = []
-for i in range(3):
-    def func():
-        print(i)
-    func_list.append(func)
+class iterator:
+    def __init__(self):
+        self.index = 1
+        self.data= []
 
-# 循环结束 i = 2
-for f in func_list:
-    f()
-# 输出全部是 2，而不是 0 1 2
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.index > 10:
+            raise StopIteration
+        self.data.append(self.index)
+        result = self.data[-1]
+        self.index += 1
+        return result
+        
+iter = iterator()
+print(list(iter))
