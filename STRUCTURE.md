@@ -158,6 +158,19 @@ learn-python/
 └── 16-capstone-project/               # 综合项目
     ├── README.md                      # AI 知识库服务路线
     └── app_skeleton.py                # 标准库版端到端骨架
+
+├── 18-c-extensions/                   # C 强化 Python 与 CPython 源码
+│   ├── README.md                      # 学习指南
+│   ├── arithmetic.c                   # ctypes 共享库源码
+│   ├── ctypes_demo.py                 # ctypes 调用示例
+│   ├── mymath_module.c                # C 扩展模块（Python/C API）
+│   ├── setup_mymath.py                # C 扩展编译脚本
+│   ├── c_extension_demo.py            # C 扩展性能对比
+│   ├── cython_example.pyx             # Cython 加速示例
+│   ├── setup_cython.py                # Cython 编译脚本
+│   ├── CPYTHON_SOURCE_GUIDE.md        # CPython 源码阅读指南
+│   ├── object_model.c                 # 注释版 PyObject 结构
+│   └── list_internals.c              # 注释版 list 实现
 ```
 
 ## 快速导航
@@ -172,6 +185,7 @@ learn-python/
 - **🔧 工具测试**: `06-tools-and-tests/`
 - **🧠 深度学习**: `07-deep-learning/`
 - **🧩 框架源码**: `08-frameworks/`
+- **🔧 C 扩展与源码**: `18-c-extensions/`
 - **🌐 网络请求**: `09-networking/`
 - **🧯 错误处理**: `10-error-handle/`
 - **⚡ 并发异步**: `11-concurrency/`

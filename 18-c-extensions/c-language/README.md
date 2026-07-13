@@ -1,0 +1,113 @@
+# C 语言系统学习教程
+
+这套材料面向 C 语言零基础学习者，也适合已经会 Python、希望理解内存、编译和 CPython 底层机制的开发者。课程基于 C17，示例只使用标准库，可以使用 Clang 或 GCC 编译。
+
+## 学完以后你能做什么
+
+- 独立编译、运行和调试多文件 C 程序。
+- 正确使用变量、控制流、函数、数组、字符串、指针和结构体。
+- 理解栈、堆、地址、生命周期、越界和内存泄漏。
+- 使用文件、动态内存和常见数据结构解决实际问题。
+- 编写有清晰接口、错误处理和自动测试的小型 C 项目。
+- 为后续学习 Python/C API 和 CPython 源码建立基础。
+
+## 环境准备
+
+macOS 检查 Clang：
+
+```bash
+clang --version
+```
+
+如果没有编译器，安装 Command Line Tools：
+
+```bash
+xcode-select --install
+```
+
+Linux 可以安装 GCC 或 Clang。进入本目录后运行：
+
+```bash
+make examples
+make test
+```
+
+单独编译一个文件：
+
+```bash
+clang -std=c17 -Wall -Wextra -Wpedantic examples/01_hello.c -o build/01_hello
+./build/01_hello
+```
+
+## 学习路线
+
+| 阶段 | 章节 | 核心问题 | 配套示例 |
+| --- | --- | --- | --- |
+| 入门 | [01 编译与程序结构](chapters/01-build-and-program.md) | 源代码如何变成程序？ | `01_hello.c` |
+| 入门 | [02 类型、变量与运算](chapters/02-types-and-operators.md) | 数据在 C 中如何表示？ | `02_types.c` |
+| 入门 | [03 分支与循环](chapters/03-control-flow.md) | 程序如何作出选择和重复工作？ | `03_control_flow.c` |
+| 基础 | [04 函数与作用域](chapters/04-functions.md) | 如何拆分逻辑并传递数据？ | `04_functions.c` |
+| 基础 | [05 数组与字符串](chapters/05-arrays-and-strings.md) | 连续数据和文本如何存储？ | `05_arrays_strings.c` |
+| 核心 | [06 指针](chapters/06-pointers.md) | 地址、解引用和参数修改是什么？ | `06_pointers.c` |
+| 核心 | [07 结构体、枚举与联合](chapters/07-structs-enums.md) | 如何建立自己的数据模型？ | `07_structs.c` |
+| 核心 | [08 动态内存](chapters/08-dynamic-memory.md) | 运行时大小未知的数据放在哪里？ | `08_dynamic_memory.c` |
+| 工程 | [09 文件与错误处理](chapters/09-files-and-errors.md) | 如何处理外部数据和失败？ | `09_files.c` |
+| 工程 | [10 多文件项目与构建](chapters/10-multi-file-projects.md) | 声明、定义和链接如何配合？ | `calculator.*` |
+| 进阶 | [11 数据结构与函数指针](chapters/11-data-structures.md) | 如何实现可扩展的数据处理？ | `11_linked_list.c` |
+| 进阶 | [12 调试、测试与安全](chapters/12-debugging-testing.md) | 如何发现未定义行为并建立质量保障？ | 全部示例 |
+
+建议每章按这个顺序学习：读章节、手敲示例、先预测输出、编译运行、完成练习、查看答案、修改输入再次验证。
+
+## 练习
+
+练习位于 [`exercises`](exercises)，参考答案位于 [`solutions`](solutions)。不要一开始就看答案。
+
+| 练习 | 训练内容 | 难度 |
+| --- | --- | --- |
+| `01_temperature.c` | 输入、浮点数、公式 | 入门 |
+| `02_fizzbuzz.c` | 分支、循环、取模 | 入门 |
+| `03_statistics.c` | 数组、函数、返回值 | 基础 |
+| `04_string_tools.c` | 字符串、指针、字符分类 | 基础 |
+| `05_student_records.c` | 结构体、排序、查找 | 核心 |
+| `06_dynamic_vector.c` | 动态内存、容量扩展 | 进阶 |
+| `07_word_count.c` | 文件、错误处理、文本统计 | 综合 |
+
+验证参考答案：
+
+```bash
+make test
+```
+
+## 编译警告是课程的一部分
+
+本课程始终开启：
+
+```text
+-std=c17 -Wall -Wextra -Wpedantic
+```
+
+警告通常意味着类型转换、未初始化变量、格式化参数或接口设计存在风险。不要通过关闭警告来“修复”代码。
+
+## 快速命令
+
+```bash
+make help        # 查看命令
+make examples    # 编译全部示例
+make exercises   # 编译练习起始文件
+make solutions   # 编译参考答案
+make test        # 编译并运行自动检查
+make sanitize    # 使用 AddressSanitizer/UBSan 检查示例
+make clean       # 删除构建产物
+```
+
+## C 与 Python 的关键差异
+
+| Python | C |
+| --- | --- |
+| 变量引用对象，类型通常在运行时确定 | 变量有固定类型和存储大小 |
+| 自动管理对象内存 | 程序员必须管理动态内存 |
+| 列表会自动扩容并保存对象引用 | 数组长度固定并连续存储元素 |
+| 异常传播错误 | 常用返回值、`errno` 或输出参数表示错误 |
+| 运行 `.py` 文件 | 源文件先预处理、编译、汇编、链接 |
+
+不要把 C 当作“语法更少的 Python”。C 的核心是明确的数据布局、所有权、生命周期和机器级执行成本。

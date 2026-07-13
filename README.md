@@ -201,6 +201,20 @@ PyTorch 深度学习从基础到实战的完整教程。
 - `README.md` - 综合项目路线
 - `app_skeleton.py` - 标准库版端到端骨架
 
+### 📁 18-c-extensions - C 语言强化 Python 与 CPython 源码
+用 C 扩展提升 Python 性能，以及阅读 CPython 解释器源码。
+
+**C 扩展方式：**
+- `arithmetic.c` + `ctypes_demo.py` - ctypes 调用 C 共享库
+- `mymath_module.c` + `setup_mymath.py` - Python/C API 扩展模块
+- `c_extension_demo.py` - C 扩展使用和性能对比
+- `cython_example.pyx` + `setup_cython.py` - Cython 加速
+
+**CPython 源码阅读：**
+- `CPYTHON_SOURCE_GUIDE.md` - CPython 源码阅读指南
+- `object_model.c` - 注释版 PyObject 结构和引用计数
+- `list_internals.c` - 注释版 list 内存布局和扩容策略
+
 ### 📁 requirements - 依赖清单
 按学习方向拆分依赖，避免一开始安装全部重依赖。
 
@@ -221,6 +235,7 @@ PyTorch 深度学习从基础到实战的完整教程。
 6. **数据、深度学习和 AI 应用** → 学习 `13-data-science`、`07-deep-learning`、`14-ai-applications`
 7. **部署、安全和综合项目** → 学习 `05-devops`、`15-security-observability`、`16-capstone-project`
 8. **框架源码** → 通过 `08-frameworks` 阅读 Django/FastAPI 源码，理解大型项目设计
+9. **C 扩展与底层** → 通过 `18-c-extensions` 学习 C 扩展和 CPython 源码
 
 ## 使用说明
 
