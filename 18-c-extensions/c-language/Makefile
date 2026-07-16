@@ -2,7 +2,7 @@ CC ?= clang
 CFLAGS := -std=c17 -Wall -Wextra -Wpedantic -g
 BUILD := build
 EXAMPLES := $(wildcard examples/*.c)
-SINGLE_EXAMPLES := $(filter-out examples/calculator.c examples/10_multi_file.c,$(EXAMPLES))
+SINGLE_EXAMPLES := $(filter-out examples/calculator.c examples/10_multi_file.c examples/18_mathlib.c,$(EXAMPLES))
 EXAMPLE_BINS := $(patsubst examples/%.c,$(BUILD)/examples/%,$(SINGLE_EXAMPLES))
 SOLUTION_SOURCES := $(wildcard solutions/*.c)
 SOLUTION_BINS := $(patsubst solutions/%.c,$(BUILD)/solutions/%,$(SOLUTION_SOURCES))
@@ -32,6 +32,23 @@ $(BUILD)/examples/%: examples/%.c
 $(BUILD)/examples/10_multi_file: examples/10_multi_file.c examples/calculator.c examples/calculator.h
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) examples/10_multi_file.c examples/calculator.c -o $@
+
+$(BUILD)/examples/16_threads: examples/16_threads.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -pthread $< -o $@
+
+$(BUILD)/examples/18_shared_libs: examples/18_shared_libs.c examples/18_mathlib.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -shared -fPIC examples/18_mathlib.c -o $(BUILD)/examples/libmathlib.dylib
+	$(CC) $(CFLAGS) $< -o $@
+
+$(BUILD)/exercises/11_thread_pool: exercises/11_thread_pool.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -pthread $< -o $@
+
+$(BUILD)/solutions/11_thread_pool: solutions/11_thread_pool.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -pthread $< -o $@
 
 $(BUILD)/exercises/%: exercises/%.c
 	@mkdir -p $(@D)

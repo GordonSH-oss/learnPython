@@ -9,6 +9,8 @@
 - 理解栈、堆、地址、生命周期、越界和内存泄漏。
 - 使用文件、动态内存和常见数据结构解决实际问题。
 - 编写有清晰接口、错误处理和自动测试的小型 C 项目。
+- 理解进程、线程、系统调用、文件描述符和虚拟内存等操作系统核心概念。
+- 使用 socket 编写网络程序，使用 dlopen 实现插件系统。
 - 为后续学习 Python/C API 和 CPython 源码建立基础。
 
 ## 环境准备
@@ -55,6 +57,13 @@ clang -std=c17 -Wall -Wextra -Wpedantic examples/01_hello.c -o build/01_hello
 | 工程 | [10 多文件项目与构建](chapters/10-multi-file-projects.md) | 声明、定义和链接如何配合？ | `calculator.*` |
 | 进阶 | [11 数据结构与函数指针](chapters/11-data-structures.md) | 如何实现可扩展的数据处理？ | `11_linked_list.c` |
 | 进阶 | [12 调试、测试与安全](chapters/12-debugging-testing.md) | 如何发现未定义行为并建立质量保障？ | 全部示例 |
+| 系统 | [13 预处理器与位操作](chapters/13-preprocessor-and-bits.md) | 宏、条件编译和位级运算如何工作？ | `13_preprocessor_bits.c` |
+| 系统 | [14 内存布局与虚拟内存](chapters/14-memory-layout.md) | 进程地址空间的结构是什么样的？ | `14_memory_layout.c` |
+| 系统 | [15 进程与 fork/exec](chapters/15-processes.md) | 如何创建和管理子进程？ | `15_processes.c` |
+| 系统 | [16 线程与并发](chapters/16-threads.md) | 如何实现多线程和同步？ | `16_threads.c` |
+| 系统 | [17 系统调用与文件描述符](chapters/17-syscalls-and-fd.md) | stdio 之下发生了什么？ | `17_syscalls_fd.c` |
+| 系统 | [18 共享库与动态链接](chapters/18-shared-libraries.md) | .so/.dylib 如何加载和链接？ | `18_shared_libs.c` |
+| 系统 | [19 Socket 网络编程](chapters/19-socket-programming.md) | 如何用 C 进行网络通信？ | `19_socket.c` |
 
 建议每章按这个顺序学习：读章节、手敲示例、先预测输出、编译运行、完成练习、查看答案、修改输入再次验证。
 
@@ -71,6 +80,13 @@ clang -std=c17 -Wall -Wextra -Wpedantic examples/01_hello.c -o build/01_hello
 | `05_student_records.c` | 结构体、排序、查找 | 核心 |
 | `06_dynamic_vector.c` | 动态内存、容量扩展 | 进阶 |
 | `07_word_count.c` | 文件、错误处理、文本统计 | 综合 |
+| `08_bitflags.c` | 位运算、掩码、标志位操作 | 系统 |
+| `09_memexplorer.c` | 内存段地址、栈堆增长方向验证 | 系统 |
+| `10_minishell.c` | fork/exec/wait 实现迷你 shell | 系统 |
+| `11_thread_pool.c` | 线程池、互斥锁、条件变量 | 系统 |
+| `12_file_copy.c` | 纯系统调用复制文件 | 系统 |
+| `13_plugin_loader.c` | dlopen/dlsym 动态插件加载 | 系统 |
+| `14_chat_server.c` | fork 并发 TCP 聊天服务器 | 综合 |
 
 验证参考答案：
 
