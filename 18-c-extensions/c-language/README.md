@@ -64,6 +64,7 @@ clang -std=c17 -Wall -Wextra -Wpedantic examples/01_hello.c -o build/01_hello
 | 系统 | [17 系统调用与文件描述符](chapters/17-syscalls-and-fd.md) | stdio 之下发生了什么？ | `17_syscalls_fd.c` |
 | 系统 | [18 共享库与动态链接](chapters/18-shared-libraries.md) | .so/.dylib 如何加载和链接？ | `18_shared_libs.c` |
 | 系统 | [19 Socket 网络编程](chapters/19-socket-programming.md) | 如何用 C 进行网络通信？ | `19_socket.c` |
+| 系统 | [20 Unix/POSIX API 实战](chapters/20-unix-posix-api-practice.md) | 如何在 Apple Silicon Mac 上查询和操作 Unix 系统资源？ | `20_unix_api.c` |
 
 建议每章按这个顺序学习：读章节、手敲示例、先预测输出、编译运行、完成练习、查看答案、修改输入再次验证。
 
