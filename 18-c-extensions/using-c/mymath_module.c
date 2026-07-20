@@ -1,113 +1,101 @@
-/*
- * mymath_module.c — Python C 扩展模块示例
- *
- * 展示 Python/C API 的标准用法：
- * - 解析 Python 参数
- * - 返回 Python 对象
- * - 注册模块方法
- * - 异常处理
- *
- * 编译: python setup_mymath.py build_ext --inplace
- */
-
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-/* ============================================================
- * 函数实现
- * ============================================================ */
+#include <limits.h>
+#include <stdint.h>
 
-/* 斐波那契数列（演示纯 C 计算的加速） */
-static PyObject *mymath_fibonacci(PyObject *self, PyObject *args) {
-    int n;
-
-    /* 解析参数：i = int */
-    if (!PyArg_ParseTuple(args, "i", &n))
+static PyObject *mymath_sum_squares(PyObject *module, PyObject *argument) {
+    (void)module;
+    long long limit = PyLong_AsLongLong(argument);
+    if (limit == -1 && PyErr_Occurred()) {
         return NULL;
-
-    if (n < 0) {
-        PyErr_SetString(PyExc_ValueError, "n must be non-negative");
+    }
+    if (limit < 0) {
+        PyErr_SetString(PyExc_ValueError, "limit must be non-negative");
+        return NULL;
+    }
+    if (limit > INT32_MAX) {
+        PyErr_SetString(PyExc_OverflowError, "limit exceeds INT32_MAX");
         return NULL;
     }
 
-    long long a = 0, b = 1;
-    for (int i = 0; i < n; i++) {
-        long long temp = a + b;
-        a = b;
-        b = temp;
+    int overflowed = 0;
+    int64_t total = 0;
+    Py_BEGIN_ALLOW_THREADS
+    for (int64_t value = 1; value <= limit; ++value) {
+        int64_t square = value * value;
+        if (total > INT64_MAX - square) {
+            overflowed = 1;
+            break;
+        }
+        total += square;
     }
+    Py_END_ALLOW_THREADS
 
-    return PyLong_FromLongLong(a);
+    if (overflowed) {
+        PyErr_SetString(PyExc_OverflowError,
+                        "result does not fit in a signed 64-bit integer");
+        return NULL;
+    }
+    return PyLong_FromLongLong(total);
 }
 
-/* 判断素数 */
-static PyObject *mymath_is_prime(PyObject *self, PyObject *args) {
-    long long n;
+static PyObject *mymath_count_byte(PyObject *module, PyObject *args) {
+    (void)module;
+    const char *data;
+    const char *needle;
+    Py_ssize_t data_length;
+    Py_ssize_t needle_length;
 
-    if (!PyArg_ParseTuple(args, "L", &n))
+    if (!PyArg_ParseTuple(args, "y#y#", &data, &data_length,
+                          &needle, &needle_length)) {
         return NULL;
-
-    if (n < 2)
-        Py_RETURN_FALSE;
-
-    for (long long i = 2; i * i <= n; i++) {
-        if (n % i == 0)
-            Py_RETURN_FALSE;
+    }
+    if (needle_length != 1) {
+        PyErr_SetString(PyExc_ValueError,
+                        "needle must contain exactly one byte");
+        return NULL;
     }
 
-    Py_RETURN_TRUE;
+    Py_ssize_t count = 0;
+    for (Py_ssize_t index = 0; index < data_length; ++index) {
+        if (data[index] == needle[0]) {
+            ++count;
+        }
+    }
+    return PyLong_FromSsize_t(count);
 }
 
-/* 快速幂 */
-static PyObject *mymath_power(PyObject *self, PyObject *args) {
-    long long base, exp;
-
-    if (!PyArg_ParseTuple(args, "LL", &base, &exp))
-        return NULL;
-
-    if (exp < 0) {
-        PyErr_SetString(PyExc_ValueError, "exponent must be non-negative");
-        return NULL;
-    }
-
-    long long result = 1;
-    while (exp > 0) {
-        if (exp % 2 == 1)
-            result *= base;
-        base *= base;
-        exp /= 2;
-    }
-
-    return PyLong_FromLongLong(result);
-}
-
-/* ============================================================
- * 模块方法表
- * ============================================================ */
-
-static PyMethodDef MyMathMethods[] = {
-    {"fibonacci", mymath_fibonacci, METH_VARARGS,
-     "fibonacci(n) -> int\n\nReturn the n-th Fibonacci number."},
-    {"is_prime", mymath_is_prime, METH_VARARGS,
-     "is_prime(n) -> bool\n\nReturn True if n is a prime number."},
-    {"power", mymath_power, METH_VARARGS,
-     "power(base, exp) -> int\n\nFast exponentiation using binary method."},
-    {NULL, NULL, 0, NULL}
+static PyMethodDef mymath_methods[] = {
+    {
+        "sum_squares",
+        mymath_sum_squares,
+        METH_O,
+        PyDoc_STR("sum_squares(limit, /) -> int\n"
+                  "Return 1**2 + ... + limit**2 using a C loop."),
+    },
+    {
+        "count_byte",
+        mymath_count_byte,
+        METH_VARARGS,
+        PyDoc_STR("count_byte(data, needle, /) -> int\n"
+                  "Count a one-byte needle in a bytes-like object."),
+    },
+    {NULL, NULL, 0, NULL},
 };
 
-/* ============================================================
- * 模块定义
- * ============================================================ */
-
-static struct PyModuleDef mymathmodule = {
+static struct PyModuleDef mymath_module = {
     PyModuleDef_HEAD_INIT,
     "mymath",
-    "A sample C extension module for math operations.",
-    -1,
-    MyMathMethods
+    "Small examples for learning the Python/C API.",
+    0,
+    mymath_methods,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
 };
 
-/* 模块初始化函数 — 函数名必须是 PyInit_<模块名> */
 PyMODINIT_FUNC PyInit_mymath(void) {
-    return PyModule_Create(&mymathmodule);
+    return PyModule_Create(&mymath_module);
 }

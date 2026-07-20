@@ -1,110 +1,94 @@
-"""
-ctypes_demo.py — 用 ctypes 调用 C 共享库
+"""Load the arithmetic C ABI and expose small Python wrappers."""
 
-ctypes 是 Python 标准库，不需要安装任何额外依赖。
-适合调用已有的 C 库，或者快速实验 C 函数。
-
-运行前先编译：
-    macOS:  gcc -shared -o libarithmetic.dylib arithmetic.c
-    Linux:  gcc -shared -fPIC -o libarithmetic.so arithmetic.c
-"""
+from __future__ import annotations
 
 import ctypes
-import time
-import platform
 import os
+import platform
+from pathlib import Path
+from typing import Iterable
 
-# ============================================================
-# 1. 加载共享库
-# ============================================================
 
-lib_dir = os.path.dirname(os.path.abspath(__file__))
+def _library_path() -> Path:
+    build = Path(os.environ.get("USING_C_BUILD", Path(__file__).parent / "build"))
+    name = "libarithmetic.dylib" if platform.system() == "Darwin" else "libarithmetic.so"
+    return build / name
 
-if platform.system() == "Darwin":
-    lib_path = os.path.join(lib_dir, "libarithmetic.dylib")
-else:
-    lib_path = os.path.join(lib_dir, "libarithmetic.so")
 
-if not os.path.exists(lib_path):
-    print(f"共享库不存在: {lib_path}")
-    print("请先编译: gcc -shared -o libarithmetic.dylib arithmetic.c")
-    exit(1)
+def _load_library() -> ctypes.CDLL:
+    path = _library_path()
+    if not path.exists():
+        raise RuntimeError(f"shared library not found: {path}; run `make ctypes`")
 
-lib = ctypes.CDLL(lib_path)
+    library = ctypes.CDLL(path)
+    int32_pointer = ctypes.POINTER(ctypes.c_int32)
+    int64_pointer = ctypes.POINTER(ctypes.c_int64)
+    double_pointer = ctypes.POINTER(ctypes.c_double)
 
-# ============================================================
-# 2. 声明函数签名（参数类型和返回类型）
-# ============================================================
+    library.add_int32.argtypes = [ctypes.c_int32, ctypes.c_int32, int32_pointer]
+    library.add_int32.restype = ctypes.c_int
+    library.sum_squares.argtypes = [ctypes.c_int32, int64_pointer]
+    library.sum_squares.restype = ctypes.c_int
+    library.sum_doubles.argtypes = [double_pointer, ctypes.c_size_t, double_pointer]
+    library.sum_doubles.restype = ctypes.c_int
+    library.count_byte.argtypes = [ctypes.c_char_p, ctypes.c_size_t, ctypes.c_char]
+    library.count_byte.restype = ctypes.c_size_t
+    return library
 
-# int add(int a, int b)
-lib.add.argtypes = [ctypes.c_int, ctypes.c_int]
-lib.add.restype = ctypes.c_int
 
-# double divide(double a, double b)
-lib.divide.argtypes = [ctypes.c_double, ctypes.c_double]
-lib.divide.restype = ctypes.c_double
+LIB = _load_library()
 
-# long long sum_of_squares(int n)
-lib.sum_of_squares.argtypes = [ctypes.c_int]
-lib.sum_of_squares.restype = ctypes.c_longlong
 
-# double array_sum(double *arr, int length)
-lib.array_sum.argtypes = [ctypes.POINTER(ctypes.c_double), ctypes.c_int]
-lib.array_sum.restype = ctypes.c_double
+def _require_int32(value: int, name: str) -> int:
+    if not isinstance(value, int):
+        raise TypeError(f"{name} must be an int")
+    if not -(2**31) <= value < 2**31:
+        raise OverflowError(f"{name} does not fit in a signed 32-bit integer")
+    return value
 
-# int count_char(const char *s, char c)
-lib.count_char.argtypes = [ctypes.c_char_p, ctypes.c_char]
-lib.count_char.restype = ctypes.c_int
 
-# ============================================================
-# 3. 调用 C 函数
-# ============================================================
+def add_int32(left: int, right: int) -> int:
+    left = _require_int32(left, "left")
+    right = _require_int32(right, "right")
+    result = ctypes.c_int32()
+    status = LIB.add_int32(left, right, ctypes.byref(result))
+    if status == -2:
+        raise OverflowError("32-bit signed addition overflowed")
+    if status != 0:
+        raise RuntimeError(f"add_int32 failed with status {status}")
+    return result.value
 
-print("=== 基本调用 ===")
-print(f"add(3, 5) = {lib.add(3, 5)}")
-print(f"divide(10.0, 3.0) = {lib.divide(10.0, 3.0):.4f}")
-print(f"divide(1.0, 0.0) = {lib.divide(1.0, 0.0)}")
 
-print("\n=== 字符串参数 ===")
-text = b"hello world, hello python"
-count = lib.count_char(text, b'l')
-print(f"count_char('hello world, hello python', 'l') = {count}")
+def sum_squares(limit: int) -> int:
+    limit = _require_int32(limit, "limit")
+    result = ctypes.c_int64()
+    status = LIB.sum_squares(limit, ctypes.byref(result))
+    if status == -1:
+        raise ValueError("limit must be a non-negative 32-bit integer")
+    if status == -2:
+        raise OverflowError("result does not fit in a signed 64-bit integer")
+    return result.value
 
-# ============================================================
-# 4. 传递数组（指针）
-# ============================================================
 
-print("\n=== 数组传递 ===")
-data = [1.0, 2.0, 3.0, 4.0, 5.0]
-ArrayType = ctypes.c_double * len(data)
-c_array = ArrayType(*data)
-result = lib.array_sum(c_array, len(data))
-print(f"array_sum([1,2,3,4,5]) = {result}")
+def sum_doubles(values: Iterable[float]) -> float:
+    data = [float(value) for value in values]
+    array_type = ctypes.c_double * len(data)
+    c_values = array_type(*data)
+    result = ctypes.c_double()
+    status = LIB.sum_doubles(c_values, len(data), ctypes.byref(result))
+    if status != 0:
+        raise RuntimeError(f"sum_doubles failed with status {status}")
+    return result.value
 
-# ============================================================
-# 5. 性能对比：Python vs C
-# ============================================================
 
-print("\n=== 性能对比: sum_of_squares(10_000_000) ===")
+def count_byte(data: bytes, needle: bytes) -> int:
+    if len(needle) != 1:
+        raise ValueError("needle must contain exactly one byte")
+    return LIB.count_byte(data, len(data), needle)
 
-N = 10_000_000
 
-# Python 版本
-start = time.perf_counter()
-py_result = sum(i * i for i in range(1, N + 1))
-py_time = time.perf_counter() - start
-
-# C 版本
-start = time.perf_counter()
-c_result = lib.sum_of_squares(N)
-c_time = time.perf_counter() - start
-
-print(f"Python: {py_result}, 耗时 {py_time:.4f}s")
-print(f"C:      {c_result}, 耗时 {c_time:.4f}s")
-print(f"加速比: {py_time / c_time:.1f}x")
-
-if py_result != c_result:
-    print("\n⚠️  注意: C 结果与 Python 不同！")
-    print("   原因: C 的 long long 是 64 位，大数会溢出。")
-    print("   Python 的 int 是任意精度的，不会溢出。")
-    print("   这正是理解 C 和 Python 差异的好例子。")
+if __name__ == "__main__":
+    print("add_int32(3, 5) =", add_int32(3, 5))
+    print("sum_squares(10) =", sum_squares(10))
+    print("sum_doubles([1, 2, 3.5]) =", sum_doubles([1, 2, 3.5]))
+    print("count_byte(b'banana', b'a') =", count_byte(b"banana", b"a"))

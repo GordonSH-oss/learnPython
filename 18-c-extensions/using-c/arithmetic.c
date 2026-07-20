@@ -1,47 +1,59 @@
-/*
- * arithmetic.c — 供 Python ctypes 调用的共享库
- *
- * 编译方法：
- *   macOS:  gcc -shared -o libarithmetic.dylib arithmetic.c
- *   Linux:  gcc -shared -fPIC -o libarithmetic.so arithmetic.c
- */
+#include "arithmetic.h"
 
-#include <math.h>
+#include <limits.h>
 
-/* 基本四则运算 */
-int add(int a, int b) {
-    return a + b;
-}
-
-double divide(double a, double b) {
-    if (b == 0.0) return INFINITY;
-    return a / b;
-}
-
-/* 计算密集型示例：求 1 到 n 的平方和 */
-long long sum_of_squares(int n) {
-    long long result = 0;
-    for (int i = 1; i <= n; i++) {
-        result += (long long)i * i;
+int add_int32(int32_t left, int32_t right, int32_t *result) {
+    if (result == NULL) {
+        return -1;
     }
-    return result;
-}
-
-/* 数组求和（演示指针传递）*/
-double array_sum(double *arr, int length) {
-    double sum = 0.0;
-    for (int i = 0; i < length; i++) {
-        sum += arr[i];
+    int64_t wide_result = (int64_t)left + (int64_t)right;
+    if (wide_result < INT32_MIN || wide_result > INT32_MAX) {
+        return -2;
     }
-    return sum;
+    *result = (int32_t)wide_result;
+    return 0;
 }
 
-/* 字符串操作：统计字符出现次数 */
-int count_char(const char *s, char c) {
-    int count = 0;
-    while (*s) {
-        if (*s == c) count++;
-        s++;
+int sum_squares(int32_t limit, int64_t *result) {
+    if (result == NULL || limit < 0) {
+        return -1;
+    }
+
+    int64_t total = 0;
+    for (int64_t value = 1; value <= limit; ++value) {
+        int64_t square = value * value;
+        if (total > INT64_MAX - square) {
+            return -2;
+        }
+        total += square;
+    }
+    *result = total;
+    return 0;
+}
+
+int sum_doubles(const double *values, size_t length, double *result) {
+    if (result == NULL || (values == NULL && length != 0)) {
+        return -1;
+    }
+
+    double total = 0.0;
+    for (size_t index = 0; index < length; ++index) {
+        total += values[index];
+    }
+    *result = total;
+    return 0;
+}
+
+size_t count_byte(const char *data, size_t length, char needle) {
+    if (data == NULL) {
+        return 0;
+    }
+
+    size_t count = 0;
+    for (size_t index = 0; index < length; ++index) {
+        if (data[index] == needle) {
+            ++count;
+        }
     }
     return count;
 }
