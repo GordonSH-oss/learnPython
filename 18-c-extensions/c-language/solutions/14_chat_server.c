@@ -1,105 +1,171 @@
 /**
- * 练习 14 参考答案: 多客户端 TCP 回显聊天服务器
- * 编译: clang -std=c17 -Wall -Wextra -Wpedantic -o 14_chat_server 14_chat_server.c
- * 运行: ./14_chat_server [端口号]    测试: nc localhost 8080
+ * 练习 14: fork-per-connection TCP 回显服务器
  */
+#define _POSIX_C_SOURCE 200809L
 
+#include <arpa/inet.h>
+#include <errno.h>
+#include <netinet/in.h>
+#include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <signal.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include <unistd.h>
 
 #define DEFAULT_PORT 8080
-#define BUFFER_SIZE  1024
-#define BACKLOG      5
+#define BUFFER_SIZE 1024
+#define BACKLOG 32
 
-static int server_fd = -1;  /* 全局服务器 socket，供信号处理函数使用 */
+static volatile sig_atomic_t stop_requested = 0;
+static volatile sig_atomic_t children_changed = 0;
 
-/* SIGCHLD 处理: 回收僵尸子进程 */
-void sigchld_handler(int sig) {
-    (void)sig;
-    while (waitpid(-1, NULL, WNOHANG) > 0);
+static void handle_stop(int signal_number) {
+    (void)signal_number;
+    stop_requested = 1;
 }
 
-/* SIGINT 处理: 优雅关闭服务器 */
-void sigint_handler(int sig) {
-    (void)sig;
-    printf("\n服务器正在关闭...\n");
-    if (server_fd != -1) close(server_fd);
-    exit(0);
+static void handle_child(int signal_number) {
+    (void)signal_number;
+    children_changed = 1;
 }
 
-/* 处理单个客户端的通信 (子进程中运行) */
-void handle_client(int client_fd, struct sockaddr_in *addr) {
-    char buffer[BUFFER_SIZE], response[BUFFER_SIZE + 16];
-    printf("[子进程 %d] 客户端已连接: %s:%d\n",
-           getpid(), inet_ntoa(addr->sin_addr), ntohs(addr->sin_port));
-
-    ssize_t n;
-    while ((n = read(client_fd, buffer, BUFFER_SIZE - 1)) > 0) {
-        buffer[n] = '\0';
-        /* 去除末尾换行符 */
-        while (n > 0 && (buffer[n-1] == '\n' || buffer[n-1] == '\r'))
-            buffer[--n] = '\0';
-        if (n == 0) continue;
-
-        snprintf(response, sizeof(response), "Server: %s\n", buffer);
-        write(client_fd, response, strlen(response));
-    }
-    printf("[子进程 %d] 客户端已断开\n", getpid());
-    close(client_fd);
-    exit(0);
+static int install_handler(int signal_number, void (*handler)(int)) {
+    struct sigaction action = {0};
+    action.sa_handler = handler;
+    sigemptyset(&action.sa_mask);
+    return sigaction(signal_number, &action, NULL);
 }
 
-int main(int argc, char *argv[]) {
-    int port = (argc > 1) ? atoi(argv[1]) : DEFAULT_PORT;
-    struct sockaddr_in server_addr, client_addr;
-    socklen_t client_len = sizeof(client_addr);
+static void reap_children(void) {
+    int saved_errno = errno;
+    while (waitpid(-1, NULL, WNOHANG) > 0) {}
+    children_changed = 0;
+    errno = saved_errno;
+}
 
-    signal(SIGCHLD, sigchld_handler);  /* 注册信号处理 */
-    signal(SIGINT, sigint_handler);
-
-    /* 创建 TCP socket 并设置地址复用 */
-    server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_fd < 0) { perror("socket"); exit(1); }
-    int opt = 1;
-    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-
-    /* 绑定地址并开始监听 */
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(port);
-    if (bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("bind"); close(server_fd); exit(1);
-    }
-    if (listen(server_fd, BACKLOG) < 0) {
-        perror("listen"); close(server_fd); exit(1);
-    }
-
-    printf("聊天服务器启动，监听端口 %d ...\n", port);
-    printf("使用 Ctrl+C 关闭服务器\n");
-
-    /* 主循环: 接受连接并 fork 子进程处理 */
-    while (1) {
-        int client_fd = accept(server_fd,
-                               (struct sockaddr *)&client_addr, &client_len);
-        if (client_fd < 0) { perror("accept"); continue; }
-
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork"); close(client_fd);
-        } else if (pid == 0) {
-            close(server_fd);  /* 子进程关闭监听 socket */
-            handle_client(client_fd, &client_addr);
+static int send_all(int fd, const void *data, size_t length) {
+    const unsigned char *cursor = data;
+    while (length > 0) {
+#if defined(__APPLE__)
+        ssize_t sent = send(fd, cursor, length, 0);
+#else
+        ssize_t sent = send(fd, cursor, length, MSG_NOSIGNAL);
+#endif
+        if (sent > 0) {
+            cursor += sent;
+            length -= (size_t)sent;
+        } else if (sent == -1 && errno == EINTR) {
+            continue;
         } else {
-            close(client_fd);  /* 父进程关闭客户端 fd */
+            return -1;
         }
     }
     return 0;
+}
+
+static void serve_client(int client, const struct sockaddr_in *address) {
+    char host[INET_ADDRSTRLEN] = "unknown";
+    inet_ntop(AF_INET, &address->sin_addr, host, sizeof host);
+    dprintf(STDOUT_FILENO, "client %s:%u connected\n",
+            host, (unsigned)ntohs(address->sin_port));
+
+    char buffer[BUFFER_SIZE];
+    for (;;) {
+        ssize_t count = recv(client, buffer, sizeof buffer, 0);
+        if (count > 0) {
+            if (send_all(client, buffer, (size_t)count) == -1) break;
+        } else if (count == 0) {
+            break;
+        } else if (errno != EINTR) {
+            break;
+        }
+    }
+    close(client);
+}
+
+static bool parse_port(const char *text, uint16_t *port) {
+    char *end = NULL;
+    errno = 0;
+    long value = strtol(text, &end, 10);
+    if (errno != 0 || end == text || *end != '\0' ||
+        value < 1 || value > 65535) {
+        return false;
+    }
+    *port = (uint16_t)value;
+    return true;
+}
+
+int main(int argc, char **argv) {
+    uint16_t port = DEFAULT_PORT;
+    if (argc > 2 || (argc == 2 && !parse_port(argv[1], &port))) {
+        fprintf(stderr, "usage: %s [1-65535]\n", argv[0]);
+        return 2;
+    }
+    if (install_handler(SIGINT, handle_stop) == -1 ||
+        install_handler(SIGTERM, handle_stop) == -1 ||
+        install_handler(SIGCHLD, handle_child) == -1) {
+        perror("sigaction");
+        return EXIT_FAILURE;
+    }
+    signal(SIGPIPE, SIG_IGN);
+
+    int listener = socket(AF_INET, SOCK_STREAM, 0);
+    if (listener == -1) {
+        perror("socket");
+        return EXIT_FAILURE;
+    }
+    int enabled = 1;
+    if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR,
+                   &enabled, sizeof enabled) == -1) {
+        perror("setsockopt");
+        close(listener);
+        return EXIT_FAILURE;
+    }
+    struct sockaddr_in server = {
+        .sin_family = AF_INET,
+        .sin_port = htons(port),
+        .sin_addr.s_addr = htonl(INADDR_ANY),
+    };
+    if (bind(listener, (struct sockaddr *)&server, sizeof server) == -1 ||
+        listen(listener, BACKLOG) == -1) {
+        perror("bind/listen");
+        close(listener);
+        return EXIT_FAILURE;
+    }
+    printf("echo server listening on port %u\n", (unsigned)port);
+    fflush(stdout);
+
+    while (!stop_requested) {
+        if (children_changed) reap_children();
+
+        struct sockaddr_in client_address;
+        socklen_t address_length = sizeof client_address;
+        int client = accept(listener, (struct sockaddr *)&client_address,
+                            &address_length);
+        if (client == -1) {
+            if (errno == EINTR) continue;
+            perror("accept");
+            break;
+        }
+
+        pid_t pid = fork();
+        if (pid == -1) {
+            perror("fork");
+            close(client);
+        } else if (pid == 0) {
+            close(listener);
+            serve_client(client, &client_address);
+            _exit(0);
+        } else {
+            close(client);
+        }
+    }
+
+    close(listener);
+    reap_children();
+    puts("server stopped accepting new connections");
+    return EXIT_SUCCESS;
 }

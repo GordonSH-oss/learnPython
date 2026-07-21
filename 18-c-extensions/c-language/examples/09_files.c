@@ -15,7 +15,14 @@ int main(void) {
 
     char line[64];
     size_t lines = 0;
-    while (fgets(line, sizeof line, file) != NULL) lines++;
+    while (fgets(line, sizeof line, file) != NULL) {
+        lines++;
+    }
+    if (ferror(file)) {
+        perror("fgets");
+        fclose(file);
+        return 1;
+    }
     printf("lines=%zu\n", lines);
     if (fclose(file) != 0) {
         perror("fclose");

@@ -1,112 +1,150 @@
-// 16_threads.c - 多线程编程
-// 编译: clang -std=c17 -Wall -Wextra -Wpedantic -pthread 16_threads.c -o 16_threads
+/**
+ * 16_threads.c - POSIX 线程、原子计数和 FIFO 条件变量队列
+ */
+#include <pthread.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
-#include <unistd.h>
+#include <string.h>
 
-/* === 1. 基本线程创建 === */
-void *hello_thread(void *arg) {
-    int id = *(int *)arg;
-    printf("线程 %d: 你好!\n", id);
-    return NULL;
-}
-
-/* === 2. 竞态条件演示 === */
-#define NUM_THREADS 4
+#define THREAD_COUNT 4
 #define INCREMENTS 100000
-int shared_counter = 0;         // 共享计数器(无保护)
-int safe_counter = 0;           // 共享计数器(有保护)
-pthread_mutex_t counter_lock = PTHREAD_MUTEX_INITIALIZER;
+#define BUFFER_CAPACITY 5
+#define ITEM_COUNT 12
 
-void *unsafe_increment(void *arg) {
-    (void)arg;
-    for (int i = 0; i < INCREMENTS; i++)
-        shared_counter++;       // 竞态条件!
-    return NULL;
+static void report_pthread_error(const char *operation, int error) {
+    fprintf(stderr, "%s: %s\n", operation, strerror(error));
 }
-/* === 3. 互斥锁修复 === */
-void *safe_increment(void *arg) {
-    (void)arg;
-    for (int i = 0; i < INCREMENTS; i++) {
-        pthread_mutex_lock(&counter_lock);
-        safe_counter++;
-        pthread_mutex_unlock(&counter_lock);
-    }
-    return NULL;
-}
-/* === 4. 生产者-消费者(条件变量) === */
-#define BUFFER_SIZE 5
-int buffer[BUFFER_SIZE], count = 0;
-pthread_mutex_t buf_lock = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t not_empty = PTHREAD_COND_INITIALIZER;
-pthread_cond_t not_full = PTHREAD_COND_INITIALIZER;
 
-void *producer(void *arg) {
-    (void)arg;
-    for (int i = 1; i <= 8; i++) {
-        pthread_mutex_lock(&buf_lock);
-        while (count == BUFFER_SIZE) pthread_cond_wait(&not_full, &buf_lock);
-        buffer[count++] = i;
-        printf("生产: %d (缓冲区: %d/%d)\n", i, count, BUFFER_SIZE);
-        pthread_cond_signal(&not_empty);
-        pthread_mutex_unlock(&buf_lock);
-        usleep(50000);
+static atomic_long atomic_counter = 0;
+static long mutex_counter = 0;
+static pthread_mutex_t counter_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static void *count_with_atomics(void *unused) {
+    (void)unused;
+    for (int i = 0; i < INCREMENTS; ++i) {
+        atomic_fetch_add(&atomic_counter, 1);
     }
     return NULL;
 }
 
-void *consumer(void *arg) {
-    (void)arg;
-    for (int i = 0; i < 8; i++) {
-        pthread_mutex_lock(&buf_lock);
-        while (count == 0) pthread_cond_wait(&not_empty, &buf_lock);
-        int item = buffer[--count];
-        printf("消费: %d (缓冲区: %d/%d)\n", item, count, BUFFER_SIZE);
-        pthread_cond_signal(&not_full);
-        pthread_mutex_unlock(&buf_lock);
-        usleep(80000);
+static void *count_with_mutex(void *unused) {
+    (void)unused;
+    long local_total = 0;
+    for (int i = 0; i < INCREMENTS; ++i) {
+        ++local_total;
+    }
+    pthread_mutex_lock(&counter_mutex);
+    mutex_counter += local_total;
+    pthread_mutex_unlock(&counter_mutex);
+    return NULL;
+}
+
+typedef struct {
+    int items[BUFFER_CAPACITY];
+    size_t head;
+    size_t tail;
+    size_t count;
+    pthread_mutex_t mutex;
+    pthread_cond_t not_empty;
+    pthread_cond_t not_full;
+} Queue;
+
+static Queue queue = {
+    .mutex = PTHREAD_MUTEX_INITIALIZER,
+    .not_empty = PTHREAD_COND_INITIALIZER,
+    .not_full = PTHREAD_COND_INITIALIZER,
+};
+
+static void *producer(void *unused) {
+    (void)unused;
+    for (int item = 1; item <= ITEM_COUNT; ++item) {
+        pthread_mutex_lock(&queue.mutex);
+        while (queue.count == BUFFER_CAPACITY) {
+            pthread_cond_wait(&queue.not_full, &queue.mutex);
+        }
+        queue.items[queue.tail] = item;
+        queue.tail = (queue.tail + 1) % BUFFER_CAPACITY;
+        ++queue.count;
+        pthread_cond_signal(&queue.not_empty);
+        pthread_mutex_unlock(&queue.mutex);
     }
     return NULL;
+}
+
+static void *consumer(void *unused) {
+    (void)unused;
+    for (int index = 0; index < ITEM_COUNT; ++index) {
+        pthread_mutex_lock(&queue.mutex);
+        while (queue.count == 0) {
+            pthread_cond_wait(&queue.not_empty, &queue.mutex);
+        }
+        int item = queue.items[queue.head];
+        queue.head = (queue.head + 1) % BUFFER_CAPACITY;
+        --queue.count;
+        pthread_cond_signal(&queue.not_full);
+        pthread_mutex_unlock(&queue.mutex);
+        printf("consumed %d\n", item);
+    }
+    return NULL;
+}
+
+static int run_workers(void *(*worker)(void *), const char *label) {
+    pthread_t threads[THREAD_COUNT];
+    int created = 0;
+    for (; created < THREAD_COUNT; ++created) {
+        int error = pthread_create(&threads[created], NULL, worker, NULL);
+        if (error != 0) {
+            report_pthread_error("pthread_create", error);
+            break;
+        }
+    }
+
+    int result = created == THREAD_COUNT ? 0 : -1;
+    for (int i = 0; i < created; ++i) {
+        int error = pthread_join(threads[i], NULL);
+        if (error != 0) {
+            report_pthread_error("pthread_join", error);
+            result = -1;
+        }
+    }
+    if (result == 0) printf("%s workers joined\n", label);
+    return result;
 }
 
 int main(void) {
-    pthread_t t, threads[NUM_THREADS];
+    if (run_workers(count_with_atomics, "atomic") < 0) return EXIT_FAILURE;
+    printf("atomic counter: %ld\n", atomic_load(&atomic_counter));
 
-    // 1. 基本线程
-    printf("=== 基本线程创建 ===\n");
-    int id = 1;
-    pthread_create(&t, NULL, hello_thread, &id);
-    pthread_join(t, NULL);
+    if (run_workers(count_with_mutex, "mutex") < 0) return EXIT_FAILURE;
+    printf("mutex counter: %ld\n", mutex_counter);
 
-    // 2. 竞态条件
-    printf("\n=== 竞态条件(无锁) ===\n");
-    for (int i = 0; i < NUM_THREADS; i++)
-        pthread_create(&threads[i], NULL, unsafe_increment, NULL);
-    for (int i = 0; i < NUM_THREADS; i++)
-        pthread_join(threads[i], NULL);
-    printf("期望: %d, 实际: %d (可能不一致!)\n", NUM_THREADS * INCREMENTS, shared_counter);
+    pthread_t producer_thread;
+    pthread_t consumer_thread;
+    int error = pthread_create(&consumer_thread, NULL, consumer, NULL);
+    if (error != 0) {
+        report_pthread_error("pthread_create consumer", error);
+        return EXIT_FAILURE;
+    }
+    error = pthread_create(&producer_thread, NULL, producer, NULL);
+    if (error != 0) {
+        report_pthread_error("pthread_create producer", error);
+        pthread_cancel(consumer_thread);
+        pthread_join(consumer_thread, NULL);
+        return EXIT_FAILURE;
+    }
 
-    // 3. 互斥锁修复
-    printf("\n=== 互斥锁保护(有锁) ===\n");
-    for (int i = 0; i < NUM_THREADS; i++)
-        pthread_create(&threads[i], NULL, safe_increment, NULL);
-    for (int i = 0; i < NUM_THREADS; i++)
-        pthread_join(threads[i], NULL);
-    printf("期望: %d, 实际: %d (始终一致)\n", NUM_THREADS * INCREMENTS, safe_counter);
+    int producer_error = pthread_join(producer_thread, NULL);
+    int consumer_error = pthread_join(consumer_thread, NULL);
+    if (producer_error != 0 || consumer_error != 0) {
+        if (producer_error != 0) report_pthread_error("join producer", producer_error);
+        if (consumer_error != 0) report_pthread_error("join consumer", consumer_error);
+        return EXIT_FAILURE;
+    }
 
-    // 4. 生产者-消费者
-    printf("\n=== 生产者-消费者 ===\n");
-    pthread_t prod, cons;
-    pthread_create(&prod, NULL, producer, NULL);
-    pthread_create(&cons, NULL, consumer, NULL);
-    pthread_join(prod, NULL);
-    pthread_join(cons, NULL);
-
-    pthread_mutex_destroy(&counter_lock);
-    pthread_mutex_destroy(&buf_lock);
-    pthread_cond_destroy(&not_empty);
-    pthread_cond_destroy(&not_full);
-    printf("\n完成!\n");
-    return 0;
+    pthread_mutex_destroy(&counter_mutex);
+    pthread_mutex_destroy(&queue.mutex);
+    pthread_cond_destroy(&queue.not_empty);
+    pthread_cond_destroy(&queue.not_full);
+    return EXIT_SUCCESS;
 }

@@ -443,3 +443,7 @@ double ratio = 1 / 2;  // 0.0，不是 0.5
 - 分别预测使用 `9 / 5`、`9.0 / 5.0` 时公式如何计算，再运行验证。
 
 随后修改 `examples/02_types.c`，打印本机的 `CHAR_BIT`，以及 `short`、`int`、`long`、`long long`、`float`、`double` 和 `long double` 的大小。观察结果，但不要把它们当作所有平台都成立的 C 语言规则。
+
+## 与 Python/C API 的联系
+
+Python 整数可以按需扩展精度，而 C 整数具有固定类型范围；把 `PyLong` 转换为 C 整数时必须检查溢出和 Python 异常状态。`size_t`、`Py_ssize_t` 和固定宽度整数也表达不同语义，不能只因为机器上大小相同就互换。后续编写扩展时，本章的类型转换、范围检查和格式说明符规则仍然适用。

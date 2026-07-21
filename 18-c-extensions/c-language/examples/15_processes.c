@@ -1,85 +1,88 @@
 /**
- * 15_processes.c - POSIX 进程操作示例
- * 编译: clang -std=c17 -Wall -Wextra -Wpedantic 15_processes.c -o 15_processes
+ * 15_processes.c - POSIX 进程生命周期示例
  */
-
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
-/* 演示 fork + wait */
-void demo_fork_wait(void) {
-    printf("\n--- fork() + wait() ---\n");
-    pid_t pid = fork();
+static int wait_for_child(pid_t pid, const char *label) {
+    int status;
+    pid_t waited;
+    do {
+        waited = waitpid(pid, &status, 0);
+    } while (waited == -1 && errno == EINTR);
 
-    if (pid < 0) {
-        perror("fork 失败");
-        exit(EXIT_FAILURE);
-    } else if (pid == 0) {
-        /* 子进程 */
-        printf("[子进程] PID=%d, 父进程PID=%d\n", getpid(), getppid());
-        printf("[子进程] 执行一些工作...\n");
-        _exit(42);  /* 子进程退出，返回码42 */
-    } else {
-        /* 父进程 */
-        printf("[父进程] 创建子进程 PID=%d\n", pid);
-        int status;
-        waitpid(pid, &status, 0);
-        if (WIFEXITED(status)) {
-            printf("[父进程] 子进程退出码: %d\n", WEXITSTATUS(status));
-        }
+    if (waited == -1) {
+        perror("waitpid");
+        return -1;
     }
+    if (WIFEXITED(status)) {
+        printf("[%s] exited with status %d\n", label, WEXITSTATUS(status));
+    } else if (WIFSIGNALED(status)) {
+        printf("[%s] terminated by signal %d\n", label, WTERMSIG(status));
+    }
+    return 0;
 }
 
-/* 演示 fork + exec */
-void demo_fork_exec(void) {
-    printf("\n--- fork() + execvp() ---\n");
-    pid_t pid = fork();
-
-    if (pid < 0) {
-        perror("fork 失败");
-        exit(EXIT_FAILURE);
-    } else if (pid == 0) {
-        /* 子进程: 用 execvp 执行 echo 命令 */
-        char *args[] = {"echo", "[exec] 子进程通过 execvp 运行 echo", NULL};
-        execvp("echo", args);
-        perror("execvp 失败");  /* 仅在exec失败时执行 */
-        _exit(EXIT_FAILURE);
-    } else {
-        int status;
-        waitpid(pid, &status, 0);
-        printf("[父进程] exec子进程已结束\n");
+static int demo_fork_wait(void) {
+    puts("\n--- fork + waitpid ---");
+    if (fflush(NULL) == EOF) {
+        perror("fflush");
+        return -1;
     }
+
+    pid_t pid = fork();
+    if (pid == -1) {
+        perror("fork");
+        return -1;
+    }
+    if (pid == 0) {
+        dprintf(STDOUT_FILENO, "[child] PID=%ld PPID=%ld\n",
+                (long)getpid(), (long)getppid());
+        _exit(42);
+    }
+
+    printf("[parent] created child PID=%ld\n", (long)pid);
+    return wait_for_child(pid, "child");
 }
 
-/* 演示环境变量 */
-void demo_env(void) {
-    printf("\n--- 环境变量 ---\n");
-    const char *home = getenv("HOME");
-    const char *path = getenv("PATH");
-    printf("HOME = %s\n", home ? home : "(未设置)");
-    printf("PATH = %.60s...\n", path ? path : "(未设置)");
+static int demo_fork_exec(void) {
+    puts("\n--- fork + execvp ---");
+    if (fflush(NULL) == EOF) {
+        perror("fflush");
+        return -1;
+    }
+
+    pid_t pid = fork();
+    if (pid == -1) {
+        perror("fork");
+        return -1;
+    }
+    if (pid == 0) {
+        char *const arguments[] = {
+            "echo", "[exec] child process replaced its image", NULL
+        };
+        execvp(arguments[0], arguments);
+        int error = errno;
+        dprintf(STDERR_FILENO, "execvp failed: %s\n", strerror(error));
+        _exit(127);
+    }
+    return wait_for_child(pid, "exec child");
 }
 
 int main(void) {
-    printf("=== POSIX 进程操作 ===\n");
+    printf("=== POSIX processes ===\nPID=%ld PPID=%ld\n",
+           (long)getpid(), (long)getppid());
 
-    /* 1. 当前进程信息 */
-    printf("\n--- 进程信息 ---\n");
-    printf("当前进程 PID: %d\n", getpid());
-    printf("父进程 PPID:  %d\n", getppid());
+    if (demo_fork_wait() < 0 || demo_fork_exec() < 0) {
+        return EXIT_FAILURE;
+    }
 
-    /* 2. fork + wait */
-    demo_fork_wait();
-
-    /* 3. fork + exec */
-    demo_fork_exec();
-
-    /* 4. 环境变量 */
-    demo_env();
-
-    printf("\n=== 完成 ===\n");
-    return 0;
+    const char *home = getenv("HOME");
+    printf("\nHOME=%s\n", home != NULL ? home : "(not set)");
+    return EXIT_SUCCESS;
 }

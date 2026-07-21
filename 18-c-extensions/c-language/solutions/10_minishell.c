@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -28,12 +29,12 @@ static int parse_line(char *line, char *argv[]) {
 }
 
 /* 使用 fork + execvp 执行外部命令，父进程等待子进程结束 */
-static void execute_command(char *argv[]) {
+static int execute_command(char *argv[]) {
     pid_t pid = fork();
 
     if (pid < 0) {
         perror("minishell: fork");
-        return;
+        return -1;
     }
 
     if (pid == 0) {
@@ -41,12 +42,23 @@ static void execute_command(char *argv[]) {
         execvp(argv[0], argv);
         /* execvp 仅在失败时返回 */
         perror(argv[0]);
-        _exit(EXIT_FAILURE);
+        _exit(127);
     }
 
     /* 父进程: 等待子进程结束 */
     int status;
-    waitpid(pid, &status, 0);
+    pid_t waited;
+    do {
+        waited = waitpid(pid, &status, 0);
+    } while (waited == -1 && errno == EINTR);
+    if (waited == -1) {
+        perror("minishell: waitpid");
+        return -1;
+    }
+    if (WIFSIGNALED(status)) {
+        fprintf(stderr, "minishell: terminated by signal %d\n", WTERMSIG(status));
+    }
+    return 0;
 }
 
 int main(void) {
@@ -60,7 +72,15 @@ int main(void) {
 
         /* 读取一行输入，EOF 时退出 */
         if (fgets(line, MAX_LINE, stdin) == NULL) {
+            if (ferror(stdin)) perror("minishell: stdin");
             break;
+        }
+
+        if (strchr(line, '\n') == NULL && !feof(stdin)) {
+            int character;
+            while ((character = getchar()) != '\n' && character != EOF) {}
+            fputs("minishell: input line too long\n", stderr);
+            continue;
         }
 
         /* 解析命令行 */

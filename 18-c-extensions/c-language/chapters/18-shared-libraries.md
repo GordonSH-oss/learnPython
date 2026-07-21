@@ -1,155 +1,205 @@
-# 18 共享库与动态链接
+# 18 静态库、共享库与动态加载
 
 ## 学习目标
 
-理解静态库与共享库的创建方式、运行时链接机制，以及通过 dlopen 实现插件式动态加载。
+完成本章后，你应该能够：
 
-## 静态库 vs 共享库
+- 区分目标文件、静态库、共享库和运行时插件
+- 解释链接时符号解析与运行时库搜索的不同职责
+- 在 Linux 和 macOS 上创建并检查共享库
+- 使用 rpath、SONAME 或 install name 管理部署关系
+- 正确使用 `dlopen`、`dlsym`、`dlerror` 和 `dlclose`
+- 设计具有版本和所有权契约的插件 ABI
 
-| 特性 | 静态库 (.a) | 共享库 (.so / .dylib) |
-|------|------------|----------------------|
-| 链接时机 | 编译时复制进可执行文件 | 运行时由动态链接器加载 |
-| 文件体积 | 可执行文件较大 | 可执行文件小，库文件独立 |
-| 更新方式 | 必须重新编译 | 替换 .so 即可，无需重编译 |
-| 适用场景 | 嵌入式、无外部依赖部署 | 系统库、插件、多进程共享内存 |
+## 四种构建产物
+
+| 产物 | 常见后缀 | 作用 |
+| --- | --- | --- |
+| 目标文件 | `.o` | 单个翻译单元生成的机器码与符号 |
+| 静态库 | `.a` | 多个目标文件的归档，链接器按需取出成员 |
+| 共享库 | `.so`/`.dylib` | 可执行文件记录依赖，动态链接器在装载时解析 |
+| 插件 | `.so`/`.dylib` | 程序主动在运行时打开并查询约定符号 |
+
+静态链接不是简单复制整个 `.a`；链接器通常只提取解决当前未定义符号所需的成员。共享库也不是“随便替换就无需重编译”：只有 ABI 保持兼容时才成立。
 
 ## 创建静态库
 
 ```bash
-# 编译目标文件
-clang -c mathutil.c -o mathutil.o
-
-# 打包为静态库 (ar = archiver, rcs = replace/create/index)
+clang -std=c17 -Wall -Wextra -Wpedantic -c mathutil.c -o mathutil.o
 ar rcs libmathutil.a mathutil.o
-
-# 使用: -L 指定库搜索路径, -l 指定库名 (去掉 lib 前缀和后缀)
-clang main.c -L. -lmathutil -o main
+clang main.o -L. -lmathutil -o main
 ```
+
+库参数通常放在引用它的目标文件之后，以兼容按从左到右解析的静态链接器。
 
 ## 创建共享库
 
+Linux：
+
 ```bash
-# Linux: -fPIC 生成位置无关代码, -shared 生成 .so
-clang -fPIC -shared mathutil.c -o libmathutil.so
+clang -std=c17 -fPIC -shared mathutil.c \
+  -Wl,-soname,libmathutil.so.1 -o libmathutil.so.1
+```
 
-# macOS: 使用 -dynamiclib 生成 .dylib
-clang -fPIC -dynamiclib mathutil.c -o libmathutil.dylib
+macOS：
 
-# 链接共享库
+```bash
+clang -std=c17 -dynamiclib mathutil.c \
+  -Wl,-install_name,@rpath/libmathutil.dylib \
+  -o libmathutil.dylib
+```
+
+位置无关代码允许库映射到不同虚拟地址。现代平台具体生成方式由工具链决定，不能把 ELF、Mach-O 选项和检查命令混用。
+
+## 链接时依赖与运行时搜索
+
+```bash
 clang main.c -L. -lmathutil -o main
 ```
 
-`-fPIC` (Position Independent Code) 使代码通过相对地址访问数据，允许库被加载到任意内存地址。
+这一步让链接器验证所需符号并把共享库依赖记录进可执行文件。程序启动时，动态链接器仍需要找到兼容库。
 
-## 运行时链接
-
-编译时链接了共享库，运行时还需让动态链接器找到它：
+更可部署的方式是记录相对 rpath：
 
 ```bash
-# Linux: 设置搜索路径
-export LD_LIBRARY_PATH=/path/to/libs:$LD_LIBRARY_PATH
-./main
-
-# macOS: 对应环境变量
-export DYLD_LIBRARY_PATH=/path/to/libs:$DYLD_LIBRARY_PATH
-./main
-
-# 更好的方式: 编译时写入 rpath (运行时搜索路径)
-# Linux
+# Linux：库与程序位于同一目录
 clang main.c -L. -lmathutil -Wl,-rpath,'$ORIGIN' -o main
+
 # macOS
 clang main.c -L. -lmathutil -Wl,-rpath,@loader_path -o main
 ```
 
-`rpath` 将搜索路径嵌入二进制文件，部署时无需设置环境变量。
+`LD_LIBRARY_PATH` 和 `DYLD_LIBRARY_PATH` 适合调试，不宜成为唯一部署方案；macOS 的变量还可能受 SIP 和进程启动方式限制。
 
-## dlopen / dlsym 动态加载
+## ABI、SONAME 与 install name
 
-不在编译时链接，而是运行时按需加载符号，常用于插件系统：
+共享库契约不仅是函数名，还包括：
+
+- 参数和返回类型、调用约定
+- 结构体大小、布局与对齐
+- 导出符号名称与可见性
+- 谁分配、谁释放，以及应使用哪个分配器
+- 线程安全和初始化顺序
+- 错误码与版本兼容规则
+
+Linux 常用 SONAME 表示兼容 ABI 主版本；macOS 使用 install name 和兼容版本元数据。破坏 ABI 时应发布新主版本，而不是用同名文件静默替换。
+
+## 检查依赖和符号
+
+Linux：
+
+```bash
+readelf -d main
+ldd main
+nm -D --defined-only libmathutil.so
+```
+
+macOS：
+
+```bash
+otool -L main
+otool -l main
+nm -gU libmathutil.dylib
+```
+
+## `dlopen` 与 `dlsym`
+
+插件宿主不在普通链接阶段绑定插件符号，而是在运行中主动加载：
 
 ```c
-#include <dlfcn.h>
-#include <stdio.h>
-
-int main(void) {
-    // 打开共享库 (RTLD_LAZY: 延迟解析符号)
-    void *handle = dlopen("./libmathutil.so", RTLD_LAZY);
-    if (!handle) {
-        fprintf(stderr, "dlopen: %s\n", dlerror());
-        return 1;
-    }
-
-    // 查找符号 (函数指针)
-    typedef int (*add_fn)(int, int);
-    add_fn add = (add_fn)dlsym(handle, "add");
-
-    char *err = dlerror();
-    if (err) {
-        fprintf(stderr, "dlsym: %s\n", err);
-        dlclose(handle);
-        return 1;
-    }
-
-    printf("add(2, 3) = %d\n", add(2, 3));
-    dlclose(handle);
-    return 0;
+void *handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+if (handle == NULL) {
+    fprintf(stderr, "dlopen: %s\n", dlerror());
+    return 1;
 }
 ```
 
-```bash
-# 编译时链接 dl 库 (Linux 需要 -ldl, macOS 不需要)
-clang plugin_host.c -ldl -o plugin_host
+- `RTLD_NOW` 在打开时解析所需符号，错误更早暴露。
+- `RTLD_LOCAL` 避免插件符号默认污染后续全局解析范围。
+
+查询每个符号前清除旧错误，并在查询后立即检查：
+
+```c
+typedef int (*add_function)(int, int);
+
+dlerror();
+void *symbol = dlsym(handle, "mathlib_add");
+const char *error = dlerror();
+if (error != NULL) {
+    fprintf(stderr, "dlsym: %s\n", error);
+    dlclose(handle);
+    return 1;
+}
+
+add_function add;
+memcpy(&add, &symbol, sizeof add);
 ```
+
+POSIX 为 `dlsym` 与函数指针互操作提供实际接口约定，但 ISO C 不一般性保证对象指针和函数指针可互换。使用 `memcpy` 可以避免直接强制转换触发的严格 C 诊断，并应配合平台文档。
+
+查询多个符号后只调用一次 `dlerror` 会丢失具体失败位置。每个符号都应独立检查。
+
+## 插件 ABI
+
+插件不应只导出一组没有版本的任意函数。一个简单入口可以返回版本化函数表：
+
+```c
+typedef struct {
+    unsigned abi_version;
+    const char *name;
+    int (*initialize)(void);
+    void (*shutdown)(void);
+} PluginApi;
+
+const PluginApi *plugin_get_api(unsigned host_version);
+```
+
+宿主先验证 ABI 版本，再保存函数表。`dlclose` 前必须确保：
+
+- 没有线程仍执行插件代码
+- 没有回调函数指针仍被保存
+- 插件创建的对象已按约定销毁
+- 插件的 shutdown 已完成
+
+否则卸载后调用旧函数指针会跳转到已取消映射的代码。
 
 ## 符号可见性
 
-默认情况下共享库导出所有符号。隐藏内部符号可减小体积、加快加载、避免冲突：
-
 ```c
-// 编译时 -fvisibility=hidden 将所有符号默认隐藏
-// 只显式导出需要的接口
-
-#define EXPORT __attribute__((visibility("default")))
-#define HIDDEN __attribute__((visibility("hidden")))
-
-EXPORT int public_add(int a, int b) {
-    return a + b;
-}
-
-HIDDEN int internal_helper(int x) {
-    return x * 2;
-}
+#if defined(_WIN32)
+#define MATHLIB_EXPORT __declspec(dllexport)
+#else
+#define MATHLIB_EXPORT __attribute__((visibility("default")))
+#endif
 ```
 
-```bash
-# 编译: 默认隐藏, 仅 EXPORT 标记的符号可见
-clang -fPIC -shared -fvisibility=hidden mathutil.c -o libmathutil.so
+配合 `-fvisibility=hidden` 默认隐藏内部实现，只导出公共 ABI。这样可以减少符号冲突和意外依赖，但平台导出机制需要分别处理。
 
-# 查看导出符号
-nm -D libmathutil.so | grep ' T '
-```
+## 与 Python FFI 的联系
 
-## 与 Python ctypes 的联系
+`ctypes.CDLL` 会加载动态库并查找符号。正确设置 `argtypes` 和 `restype` 是 ABI 契约的一部分；错误签名可能破坏寄存器、栈或返回值解释，而不只是得到错误 Python 值。
 
-Python 的 `ctypes.CDLL` 本质就是对 `dlopen` 的封装：
+动态库中返回的内存通常应由同一库提供的释放函数回收，尤其在不同 C 运行库或分配器边界上。
 
-```python
-import ctypes
+## 常见错误
 
-# 等价于 C 的 dlopen("./libmathutil.so", RTLD_LAZY)
-lib = ctypes.CDLL("./libmathutil.so")
+- 把静态库理解为总是整库复制
+- 假定替换共享库永远不需要重新构建
+- 把 Linux 的 `nm -D`、SONAME 和 `.so` 命令直接用于 macOS
+- 只靠当前工作目录拼接插件路径
+- 多次 `dlsym` 后只检查一次错误
+- 卸载插件后继续保存其函数指针或对象
+- 公共结构体改变布局却不提升 ABI 版本
 
-# 等价于 dlsym(handle, "add")
-lib.add.argtypes = [ctypes.c_int, ctypes.c_int]
-lib.add.restype = ctypes.c_int
+## 检查点
 
-print(lib.add(2, 3))  # 5
-```
-
-理解了共享库的创建和符号导出机制，就理解了 ctypes/cffi 等 FFI 工具的底层原理。
+1. 普通链接共享库与运行时 `dlopen` 有什么区别？
+2. 为什么 API 源码兼容不一定意味着 ABI 兼容？
+3. 为什么 `dlclose` 前必须停止插件线程和回调？
 
 ## 动手练习
 
-1. 将一个简单的数学模块分别编译为 `.a` 和 `.so`，对比最终可执行文件大小
-2. 编写一个插件宿主程序：用 dlopen 加载目录下所有 `.so` 文件，调用每个插件的 `plugin_init()` 函数
-3. 使用 `-fvisibility=hidden` 编译共享库，验证未标记 EXPORT 的函数无法被 dlsym 找到
+1. 运行 `examples/18_shared_libs.c`，使用 `otool -L` 或 `ldd` 检查依赖。
+2. 完成 `exercises/13_plugin_loader.c`，为插件增加 ABI 版本检查。
+3. 使用默认隐藏可见性，验证内部函数无法通过 `dlsym` 查询。
+4. 故意修改导出结构体布局，解释为什么需要新 ABI 主版本。

@@ -76,7 +76,7 @@ thread_pool_t *pool_create(int num_threads) {
  * @param function 任务函数
  * @param arg 任务参数
  */
-void pool_submit(thread_pool_t *pool, void (*function)(void *), void *arg) {
+bool pool_submit(thread_pool_t *pool, void (*function)(void *), void *arg) {
     // TODO: 创建新的任务节点
 
     // TODO: 加锁，将任务添加到队列尾部
@@ -84,6 +84,8 @@ void pool_submit(thread_pool_t *pool, void (*function)(void *), void *arg) {
     // TODO: 通过条件变量通知一个等待中的工作线程
 
     // TODO: 解锁
+
+    return false; // 成功提交后改为 true
 }
 
 /**
@@ -124,15 +126,21 @@ int main(void) {
     printf("提交 20 个任务...\n");
     for (int i = 0; i < 20; i++) {
         int *task_num = malloc(sizeof(int));
+        if (!task_num) {
+            fprintf(stderr, "任务参数分配失败\n");
+            pool_destroy(pool);
+            return 1;
+        }
         *task_num = i + 1;
-        pool_submit(pool, example_task, task_num);
+        if (!pool_submit(pool, example_task, task_num)) {
+            free(task_num); // 提交失败时所有权仍属于调用者
+            fprintf(stderr, "任务提交失败\n");
+            pool_destroy(pool);
+            return 1;
+        }
     }
 
-    // 等待一小段时间让任务执行
-    printf("\n等待任务完成...\n");
-    usleep(500000);  // 0.5秒
-
-    // 销毁线程池
+    // 销毁会停止接收任务、排空队列并等待工作线程退出
     pool_destroy(pool);
     printf("\n线程池已销毁\n");
 

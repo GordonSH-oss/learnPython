@@ -12,6 +12,16 @@ EXERCISE_BINS := $(patsubst exercises/%.c,$(BUILD)/exercises/%,$(EXERCISE_SOURCE
 PROJECT10 := examples/10-multi-file-project
 CURL_CFLAGS := $(shell curl-config --cflags)
 CURL_LIBS := $(shell curl-config --libs)
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+SHARED_LIBRARY := $(BUILD)/examples/libmathlib.dylib
+SHARED_FLAGS := -dynamiclib
+DL_LIBS :=
+else
+SHARED_LIBRARY := $(BUILD)/examples/libmathlib.so
+SHARED_FLAGS := -shared
+DL_LIBS := -ldl
+endif
 PROJECT10_BUILD := $(abspath $(BUILD)/examples/10-multi-file-project)
 
 .PHONY: help examples exercises solutions test project10-test sanitize clean
@@ -45,10 +55,13 @@ $(BUILD)/examples/16_threads: examples/16_threads.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -pthread $< -o $@
 
-$(BUILD)/examples/18_shared_libs: examples/18_shared_libs.c examples/18_mathlib.c
+$(BUILD)/examples/18_shared_libs: examples/18_shared_libs.c $(SHARED_LIBRARY)
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) -shared -fPIC examples/18_mathlib.c -o $(BUILD)/examples/libmathlib.dylib
-	$(CC) $(CFLAGS) $< -o $@
+	$(CC) $(CFLAGS) $< $(DL_LIBS) -o $@
+
+$(SHARED_LIBRARY): examples/18_mathlib.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(SHARED_FLAGS) -fPIC $< -lm -o $@
 
 $(BUILD)/exercises/11_thread_pool: exercises/11_thread_pool.c
 	@mkdir -p $(@D)

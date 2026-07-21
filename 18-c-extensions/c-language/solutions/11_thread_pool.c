@@ -1,169 +1,205 @@
 /**
- * 练习 11: 线程池 (Thread Pool) - 参考答案
- *
- * 实现一个简单的固定大小线程池，支持任务提交和优雅关闭。
- *
- * 编译: clang -std=c17 -Wall -Wextra -Wpedantic -pthread -o 11_thread_pool 11_thread_pool.c
+ * 练习 11: 固定大小线程池参考答案
+ * 提交成功后任务参数所有权转移给任务函数；提交失败仍归调用者。
  */
-
-#include <stdio.h>
-#include <stdlib.h>
 #include <pthread.h>
 #include <stdbool.h>
-#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-/* 任务节点结构体 - 链表实现的任务队列 */
 typedef struct task {
-    void (*function)(void *arg);  // 任务函数指针
-    void *arg;                    // 任务参数
-    struct task *next;            // 下一个任务
+    void (*function)(void *argument);
+    void *argument;
+    struct task *next;
 } task_t;
 
-/* 线程池结构体 */
 typedef struct {
-    pthread_t *threads;           // 工作线程数组
-    int thread_count;             // 线程数量
-    task_t *queue_head;           // 任务队列头
-    task_t *queue_tail;           // 任务队列尾
-    pthread_mutex_t mutex;        // 保护队列的互斥锁
-    pthread_cond_t cond;          // 通知新任务的条件变量
-    bool shutdown;                // 关闭标志
+    pthread_t *threads;
+    int thread_count;
+    int created_threads;
+    task_t *queue_head;
+    task_t *queue_tail;
+    pthread_mutex_t mutex;
+    pthread_cond_t task_available;
+    bool shutting_down;
 } thread_pool_t;
 
-/* 工作线程函数：循环等待任务，取出并执行 */
-void *worker_thread(void *arg) {
-    thread_pool_t *pool = (thread_pool_t *)arg;
-
-    while (true) {
-        pthread_mutex_lock(&pool->mutex);
-
-        /* 当队列为空且未关闭时，等待条件变量 */
-        while (!pool->queue_head && !pool->shutdown) {
-            pthread_cond_wait(&pool->cond, &pool->mutex);
-        }
-
-        /* 如果收到关闭信号且队列已空，退出 */
-        if (pool->shutdown && !pool->queue_head) {
-            pthread_mutex_unlock(&pool->mutex);
-            pthread_exit(NULL);
-        }
-
-        /* 从队列头部取出任务 */
-        task_t *task = pool->queue_head;
-        pool->queue_head = task->next;
-        if (!pool->queue_head) {
-            pool->queue_tail = NULL;
-        }
-
-        pthread_mutex_unlock(&pool->mutex);
-
-        /* 执行任务并释放节点 */
-        task->function(task->arg);
-        free(task);
-    }
-    return NULL;
+static void report_pthread_error(const char *operation, int error) {
+    fprintf(stderr, "%s: %s\n", operation, strerror(error));
 }
 
-/* 创建线程池 */
-thread_pool_t *pool_create(int num_threads) {
-    thread_pool_t *pool = malloc(sizeof(thread_pool_t));
-    if (!pool) return NULL;
+static void *worker_thread(void *argument) {
+    thread_pool_t *pool = argument;
 
-    pool->thread_count = num_threads;
-    pool->queue_head = NULL;
-    pool->queue_tail = NULL;
-    pool->shutdown = false;
+    for (;;) {
+        int error = pthread_mutex_lock(&pool->mutex);
+        if (error != 0) {
+            report_pthread_error("pthread_mutex_lock", error);
+            return NULL;
+        }
 
-    pthread_mutex_init(&pool->mutex, NULL);
-    pthread_cond_init(&pool->cond, NULL);
+        while (pool->queue_head == NULL && !pool->shutting_down) {
+            error = pthread_cond_wait(&pool->task_available, &pool->mutex);
+            if (error != 0) {
+                report_pthread_error("pthread_cond_wait", error);
+                pthread_mutex_unlock(&pool->mutex);
+                return NULL;
+            }
+        }
 
-    pool->threads = malloc(sizeof(pthread_t) * (size_t)num_threads);
-    if (!pool->threads) {
+        if (pool->queue_head == NULL && pool->shutting_down) {
+            pthread_mutex_unlock(&pool->mutex);
+            return NULL;
+        }
+
+        task_t *task = pool->queue_head;
+        pool->queue_head = task->next;
+        if (pool->queue_head == NULL) pool->queue_tail = NULL;
+        pthread_mutex_unlock(&pool->mutex);
+
+        task->function(task->argument);
+        free(task);
+    }
+}
+
+static void stop_and_join_created_threads(thread_pool_t *pool) {
+    pthread_mutex_lock(&pool->mutex);
+    pool->shutting_down = true;
+    pthread_cond_broadcast(&pool->task_available);
+    pthread_mutex_unlock(&pool->mutex);
+
+    for (int i = 0; i < pool->created_threads; ++i) {
+        int error = pthread_join(pool->threads[i], NULL);
+        if (error != 0) report_pthread_error("pthread_join", error);
+    }
+}
+
+thread_pool_t *pool_create(int thread_count) {
+    if (thread_count <= 0) return NULL;
+
+    thread_pool_t *pool = calloc(1, sizeof *pool);
+    if (pool == NULL) return NULL;
+    pool->thread_count = thread_count;
+
+    int error = pthread_mutex_init(&pool->mutex, NULL);
+    if (error != 0) {
+        report_pthread_error("pthread_mutex_init", error);
+        free(pool);
+        return NULL;
+    }
+    error = pthread_cond_init(&pool->task_available, NULL);
+    if (error != 0) {
+        report_pthread_error("pthread_cond_init", error);
+        pthread_mutex_destroy(&pool->mutex);
         free(pool);
         return NULL;
     }
 
-    for (int i = 0; i < num_threads; i++) {
-        pthread_create(&pool->threads[i], NULL, worker_thread, pool);
+    pool->threads = calloc((size_t)thread_count, sizeof *pool->threads);
+    if (pool->threads == NULL) {
+        pthread_cond_destroy(&pool->task_available);
+        pthread_mutex_destroy(&pool->mutex);
+        free(pool);
+        return NULL;
+    }
+
+    for (int i = 0; i < thread_count; ++i) {
+        error = pthread_create(&pool->threads[i], NULL, worker_thread, pool);
+        if (error != 0) {
+            report_pthread_error("pthread_create", error);
+            stop_and_join_created_threads(pool);
+            pthread_cond_destroy(&pool->task_available);
+            pthread_mutex_destroy(&pool->mutex);
+            free(pool->threads);
+            free(pool);
+            return NULL;
+        }
+        ++pool->created_threads;
     }
     return pool;
 }
 
-/* 向线程池提交任务 */
-void pool_submit(thread_pool_t *pool, void (*function)(void *), void *arg) {
-    task_t *new_task = malloc(sizeof(task_t));
-    if (!new_task) return;
+bool pool_submit(thread_pool_t *pool,
+                 void (*function)(void *), void *argument) {
+    if (pool == NULL || function == NULL) return false;
 
-    new_task->function = function;
-    new_task->arg = arg;
-    new_task->next = NULL;
+    task_t *task = malloc(sizeof *task);
+    if (task == NULL) return false;
+    task->function = function;
+    task->argument = argument;
+    task->next = NULL;
 
-    pthread_mutex_lock(&pool->mutex);
-    if (pool->queue_tail) {
-        pool->queue_tail->next = new_task;
-    } else {
-        pool->queue_head = new_task;
+    int error = pthread_mutex_lock(&pool->mutex);
+    if (error != 0) {
+        report_pthread_error("pthread_mutex_lock", error);
+        free(task);
+        return false;
     }
-    pool->queue_tail = new_task;
-    pthread_cond_signal(&pool->cond);
+    if (pool->shutting_down) {
+        pthread_mutex_unlock(&pool->mutex);
+        free(task);
+        return false;
+    }
+
+    if (pool->queue_tail != NULL) {
+        pool->queue_tail->next = task;
+    } else {
+        pool->queue_head = task;
+    }
+    pool->queue_tail = task;
+    error = pthread_cond_signal(&pool->task_available);
     pthread_mutex_unlock(&pool->mutex);
+    if (error != 0) report_pthread_error("pthread_cond_signal", error);
+    return true;
 }
 
-/* 销毁线程池：通知所有线程退出，等待完成后释放资源 */
 void pool_destroy(thread_pool_t *pool) {
-    pthread_mutex_lock(&pool->mutex);
-    pool->shutdown = true;
-    pthread_cond_broadcast(&pool->cond);
-    pthread_mutex_unlock(&pool->mutex);
+    if (pool == NULL) return;
 
-    /* 等待所有工作线程结束 */
-    for (int i = 0; i < pool->thread_count; i++) {
-        pthread_join(pool->threads[i], NULL);
-    }
+    stop_and_join_created_threads(pool);
 
-    /* 清理可能残留的任务 */
     task_t *task = pool->queue_head;
-    while (task) {
+    while (task != NULL) {
         task_t *next = task->next;
         free(task);
         task = next;
     }
 
+    pthread_cond_destroy(&pool->task_available);
     pthread_mutex_destroy(&pool->mutex);
-    pthread_cond_destroy(&pool->cond);
     free(pool->threads);
     free(pool);
 }
 
-/* 示例任务函数 */
-void example_task(void *arg) {
-    int task_num = *(int *)arg;
-    printf("  任务 %d 正在线程 %lu 中执行\n", task_num, (unsigned long)pthread_self());
-    free(arg);
+static void example_task(void *argument) {
+    int task_number = *(int *)argument;
+    printf("task %d completed\n", task_number);
+    free(argument);
 }
 
 int main(void) {
-    printf("=== 线程池测试 ===\n\n");
-
     thread_pool_t *pool = pool_create(4);
-    if (!pool) {
-        fprintf(stderr, "创建线程池失败\n");
-        return 1;
-    }
-    printf("线程池已创建（4个工作线程）\n\n");
-
-    printf("提交 20 个任务...\n");
-    for (int i = 0; i < 20; i++) {
-        int *task_num = malloc(sizeof(int));
-        *task_num = i + 1;
-        pool_submit(pool, example_task, task_num);
+    if (pool == NULL) {
+        fputs("failed to create thread pool\n", stderr);
+        return EXIT_FAILURE;
     }
 
-    printf("\n等待任务完成...\n");
-    usleep(500000);
+    for (int i = 0; i < 20; ++i) {
+        int *task_number = malloc(sizeof *task_number);
+        if (task_number == NULL) {
+            pool_destroy(pool);
+            return EXIT_FAILURE;
+        }
+        *task_number = i + 1;
+        if (!pool_submit(pool, example_task, task_number)) {
+            free(task_number);
+            pool_destroy(pool);
+            return EXIT_FAILURE;
+        }
+    }
 
     pool_destroy(pool);
-    printf("\n线程池已销毁\n");
-
-    return 0;
+    puts("all queued tasks completed");
+    return EXIT_SUCCESS;
 }

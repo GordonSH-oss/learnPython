@@ -4,21 +4,36 @@
  */
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
+
+/* ====== 0. 字符串化、token 拼接和预定义宏 ====== */
+#define STRINGIFY_DIRECT(value) #value
+#define STRINGIFY(value) STRINGIFY_DIRECT(value)
+#define CONCAT_DIRECT(left, right) left##right
+#define CONCAT(left, right) CONCAT_DIRECT(left, right)
+#define STANDARD_YEAR 2017
+
+static int CONCAT(example_, counter) = 3;
 
 /* ====== 1. 带参数的宏 (do-while 技巧保证安全) ====== */
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define SWAP(a, b) do { __typeof__(a) _t = (a); (a) = (b); (b) = _t; } while(0)
+
+static void swap_int(int *left, int *right) {
+    int temporary = *left;
+    *left = *right;
+    *right = temporary;
+}
 
 /* ====== 2. 可变参数宏 ====== */
 #define DEBUG_LOG(fmt, ...) \
-    fprintf(stderr, "[DEBUG %s:%d] " fmt "\n", __FILE__, __LINE__ __VA_OPT__(,) __VA_ARGS__)
+    fprintf(stderr, "[DEBUG %s:%d] " fmt "\n", __FILE__, __LINE__, __VA_ARGS__)
 
 /* ====== 3. 条件编译 ====== */
 #ifdef DEBUG
-  #define LOG(fmt, ...) DEBUG_LOG(fmt __VA_OPT__(,) __VA_ARGS__)
+  #define LOG(fmt, ...) DEBUG_LOG(fmt, __VA_ARGS__)
 #else
-  #define LOG(fmt, ...) ((void)0)
+  #define LOG(fmt, ...) ((void)sizeof(fmt))
 #endif
 
 /* ====== 4. X-Macro 模式: 枚举 + 字符串表 ====== */
@@ -56,13 +71,20 @@ static void print_perms(Permission p) {
 }
 
 int main(void) {
+    printf("=== 预处理结果 ===\n");
+    printf("直接字符串化: %s\n", STRINGIFY_DIRECT(STANDARD_YEAR));
+    printf("展开后字符串化: %s\n", STRINGIFY(STANDARD_YEAR));
+    printf("token 拼接变量: %d\n", example_counter);
+    printf("位置: %s:%d, __STDC_VERSION__=%ld\n",
+           __FILE__, __LINE__, (long)__STDC_VERSION__);
+
     /* 1. 带参数宏 */
-    printf("=== 带参数宏 ===\n");
+    printf("\n=== 带参数宏 ===\n");
     int x = 10, y = 20;
     printf("MAX(%d, %d) = %d\n", x, y, MAX(x, y));
     printf("MIN(%d, %d) = %d\n", x, y, MIN(x, y));
-    SWAP(x, y);
-    printf("SWAP 后: x=%d, y=%d\n", x, y);
+    swap_int(&x, &y);
+    printf("交换后: x=%d, y=%d\n", x, y);
 
     /* 2 & 3. 可变参数宏 + 条件编译 */
     printf("\n=== 条件编译 (DEBUG=%d) ===\n",
@@ -76,8 +98,9 @@ int main(void) {
 
     /* 4. X-Macro */
     printf("\n=== X-Macro 枚举 ===\n");
-    for (int i = 0; i < COLOR_COUNT; i++)
+    for (int i = 0; i < COLOR_COUNT; i++) {
         printf("  enum %d -> %s\n", i, color_names[i]);
+    }
 
     /* 5. 位操作 */
     printf("\n=== 位操作 ===\n");

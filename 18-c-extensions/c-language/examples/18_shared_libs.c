@@ -1,55 +1,86 @@
-// 动态加载共享库示例 - 使用 dlopen/dlsym
-// 编译共享库: gcc -shared -fPIC -o libmathlib.dylib 18_mathlib.c -lm
-// 编译主程序: gcc -o 18_shared_libs 18_shared_libs.c (macOS 无需 -ldl)
-//            gcc -o 18_shared_libs 18_shared_libs.c -ldl (Linux 需要 -ldl)
-
+/**
+ * 18_shared_libs.c - 使用 dlopen/dlsym 加载同目录共享库
+ */
+#include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <dlfcn.h>
+#include <string.h>
 
-// 定义函数指针类型
-typedef int (*add_func)(int, int);
-typedef int (*mul_func)(int, int);
-typedef double (*pow_func)(double, double);
+typedef int (*binary_int_function)(int, int);
+typedef double (*power_function)(double, double);
 
-int main(void) {
-    // 1. 打开共享库
-#ifdef __APPLE__
-    const char *lib_path = "./libmathlib.dylib";
+static char *library_path_next_to_executable(const char *program) {
+#if defined(__APPLE__)
+    const char library_name[] = "libmathlib.dylib";
 #else
-    const char *lib_path = "./libmathlib.so";
+    const char library_name[] = "libmathlib.so";
 #endif
+    const char *slash = strrchr(program, '/');
+    size_t directory_length = slash == NULL ? 1 : (size_t)(slash - program);
+    const char *directory = slash == NULL ? "." : program;
+    size_t needed = directory_length + 1 + sizeof library_name;
+    char *path = malloc(needed);
+    if (path == NULL) return NULL;
 
-    void *handle = dlopen(lib_path, RTLD_LAZY);
-    if (!handle) {
-        fprintf(stderr, "加载失败: %s\n", dlerror());
-        return EXIT_FAILURE;
-    }
-    printf("共享库加载成功: %s\n", lib_path);
+    snprintf(path, needed, "%.*s/%s",
+             (int)directory_length, directory, library_name);
+    return path;
+}
 
-    // 2. 查找符号 (清除之前的错误)
+static void *find_symbol(void *handle, const char *name) {
     dlerror();
+    void *symbol = dlsym(handle, name);
+    const char *error = dlerror();
+    if (error != NULL) {
+        fprintf(stderr, "dlsym %s: %s\n", name, error);
+        return NULL;
+    }
+    return symbol;
+}
 
-    add_func my_add = (add_func)dlsym(handle, "mathlib_add");
-    mul_func my_mul = (mul_func)dlsym(handle, "mathlib_multiply");
-    pow_func my_pow = (pow_func)dlsym(handle, "mathlib_power");
-
-    // 检查错误
-    char *error = dlerror();
-    if (error) {
-        fprintf(stderr, "符号查找失败: %s\n", error);
-        dlclose(handle);
+int main(int argc, char **argv) {
+    if (argc > 2) {
+        fprintf(stderr, "usage: %s [library-path]\n", argv[0]);
         return EXIT_FAILURE;
     }
 
-    // 3. 通过函数指针调用
-    printf("add(3, 5)      = %d\n", my_add(3, 5));
-    printf("multiply(4, 7) = %d\n", my_mul(4, 7));
-    printf("power(2, 10)   = %.0f\n", my_pow(2.0, 10.0));
+    char *derived_path = NULL;
+    const char *library_path = argc == 2 ? argv[1] :
+        (derived_path = library_path_next_to_executable(argv[0]));
+    if (library_path == NULL) {
+        fputs("failed to build library path\n", stderr);
+        return EXIT_FAILURE;
+    }
 
-    // 4. 关闭共享库
-    dlclose(handle);
-    printf("共享库已卸载\n");
+    void *handle = dlopen(library_path, RTLD_NOW | RTLD_LOCAL);
+    if (handle == NULL) {
+        fprintf(stderr, "dlopen %s: %s\n", library_path, dlerror());
+        free(derived_path);
+        return EXIT_FAILURE;
+    }
+    printf("loaded: %s\n", library_path);
 
+    binary_int_function add =
+        (binary_int_function)find_symbol(handle, "mathlib_add");
+    binary_int_function multiply =
+        (binary_int_function)find_symbol(handle, "mathlib_multiply");
+    power_function power =
+        (power_function)find_symbol(handle, "mathlib_power");
+    if (add == NULL || multiply == NULL || power == NULL) {
+        dlclose(handle);
+        free(derived_path);
+        return EXIT_FAILURE;
+    }
+
+    printf("add(3, 5) = %d\n", add(3, 5));
+    printf("multiply(4, 7) = %d\n", multiply(4, 7));
+    printf("power(2, 10) = %.0f\n", power(2.0, 10.0));
+
+    if (dlclose(handle) != 0) {
+        fprintf(stderr, "dlclose: %s\n", dlerror());
+        free(derived_path);
+        return EXIT_FAILURE;
+    }
+    free(derived_path);
     return EXIT_SUCCESS;
 }

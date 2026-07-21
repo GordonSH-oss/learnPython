@@ -2,176 +2,224 @@
 
 ## 学习目标
 
-理解用户态与内核态的边界，掌握文件描述符、重定向、管道和内存映射等 POSIX I/O 机制。
+完成本章后，你应该能够：
 
-## 系统调用 vs 库函数
+- 区分 ISO C 流、POSIX API 和内核系统调用边界
+- 解释 fd、描述符表和 open file description 的关系
+- 正确处理短读、短写、EOF 和 `EINTR`
+- 使用 `dup2`、管道和 close-on-exec 管理 fd 生命周期
+- 安全建立并释放文件映射
 
-`printf` 是 C 库函数，内部最终调用 `write` 系统调用进入内核。系统调用开销更大（需要上下文切换），但是所有 I/O 的最终出口。
+## 库函数与系统调用
 
-```c
-#include <unistd.h>
+`printf` 是 C 标准库函数，通常先写入用户态缓冲区，最终可能通过 `write` 等系统接口提交数据。一次系统调用涉及用户态到内核态的模式切换，但不等于一定发生线程调度或进程上下文切换。
 
-int main(void) {
-    // write 是系统调用，直接交给内核
-    write(STDOUT_FILENO, "hello\n", 6);
-    // printf 是库函数，经过用户态缓冲后批量 write
-    printf("world\n");
-    return 0;
-}
-```
-
-## 文件描述符
-
-内核为每个进程维护一张打开文件表，文件描述符（fd）是该表的索引。
-
-| fd | 含义 |
-|----|------|
-| 0  | stdin  |
-| 1  | stdout |
-| 2  | stderr |
-
-```c
-#include <fcntl.h>
-#include <unistd.h>
-
-int main(void) {
-    int fd = open("data.txt", O_RDONLY);
-    if (fd < 0) { perror("open"); return 1; }
-
-    char buf[256];
-    ssize_t n = read(fd, buf, sizeof(buf) - 1);
-    if (n > 0) { buf[n] = '\0'; write(STDOUT_FILENO, buf, n); }
-    close(fd);
-    return 0;
-}
-```
-
-## stdio 是封装层
-
-`FILE *` 在 fd 之上增加了缓冲，减少系统调用次数。
+POSIX 函数也不一定一一对应系统调用。例如 `opendir`、`stdio` 和线程函数包含用户态封装。编程时应遵守公开 API 契约，而不是假定特定 libc 内部实现。
 
 ```c
 #include <stdio.h>
 #include <unistd.h>
 
 int main(void) {
-    // 获取 FILE* 底层的 fd
-    int fd = fileno(stdout);
-    printf("stdout fd = %d\n", fd);
-
-    // 反向：将 fd 包装成 FILE*
-    int raw = open("out.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    FILE *fp = fdopen(raw, "w");
-    fprintf(fp, "buffered write\n");
-    fclose(fp); // 同时关闭 raw fd
-    return 0;
-}
-```
-
-缓冲策略：终端行缓冲，文件全缓冲，stderr 无缓冲。可用 `setvbuf` 手动切换。
-
-## dup2 重定向
-
-`dup2(old_fd, new_fd)` 让 new_fd 指向 old_fd 的同一文件，常用于重定向。
-
-```c
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
-
-int main(void) {
-    int fd = open("log.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    dup2(fd, STDOUT_FILENO); // stdout 现在写入 log.txt
-    close(fd);               // 原 fd 不再需要
-
-    printf("this goes to log.txt\n");
-    return 0;
-}
-```
-
-## pipe 管道
-
-`pipe` 创建一对 fd：`pipefd[0]` 读端，`pipefd[1]` 写端。配合 `fork` 实现父子进程通信。
-
-```c
-#include <unistd.h>
-#include <stdio.h>
-#include <string.h>
-
-int main(void) {
-    int pipefd[2];
-    pipe(pipefd);
-
-    if (fork() == 0) {
-        // 子进程：写入管道
-        close(pipefd[0]);
-        const char *msg = "hello from child";
-        write(pipefd[1], msg, strlen(msg));
-        close(pipefd[1]);
-        _exit(0);
+    const char message[] = "hello from write\n";
+    if (write(STDOUT_FILENO, message, sizeof message - 1) == -1) {
+        perror("write");
+        return 1;
     }
-    // 父进程：读取管道
-    close(pipefd[1]);
-    char buf[64];
-    ssize_t n = read(pipefd[0], buf, sizeof(buf) - 1);
-    buf[n] = '\0';
-    printf("parent got: %s\n", buf);
-    close(pipefd[0]);
     return 0;
 }
 ```
+
+## fd 模型
+
+fd 是当前进程描述符表中的一个小整数索引：
+
+```text
+进程 fd 表                  内核 open file description
+fd 3 --------------------> 文件偏移、状态标志、底层对象
+fd 4 -----------+
+                +--------> 另一个打开实例
+```
+
+`dup`、`dup2` 和 `fork` 可能让多个 fd 引用同一个 open file description，因此共享文件偏移和某些状态。文件路径不是 fd：文件被重命名后，已经打开的 fd 通常仍然引用原对象。
+
+传统标准描述符为：
+
+| fd | 常量 | 通常用途 |
+| --- | --- | --- |
+| 0 | `STDIN_FILENO` | 标准输入 |
+| 1 | `STDOUT_FILENO` | 标准输出 |
+| 2 | `STDERR_FILENO` | 标准错误 |
+
+程序仍应允许它们已关闭或被重定向。
+
+## `open`、`read`、`write`、`close`
+
+```c
+int fd = open(path, O_RDONLY | O_CLOEXEC);
+if (fd == -1) {
+    perror("open");
+    return 1;
+}
+```
+
+`O_CLOEXEC` 防止 fd 意外泄漏到之后 `exec` 的程序。
+
+### 短读与 EOF
+
+`read` 返回：
+
+- 正数：本次实际读取的字节数，可能少于请求
+- `0`：EOF；管道或 socket 中通常表示所有写端已经关闭
+- `-1`：失败，检查 `errno`
+
+```c
+ssize_t count;
+do {
+    count = read(fd, buffer, capacity);
+} while (count == -1 && errno == EINTR);
+```
+
+只有 `count > 0` 时才能访问这部分数据。二进制数据不需要 `\0`；若要作为字符串打印，必须预留一个字节并手动终止。
+
+### 短写
+
+`write` 成功也可能只写入部分数据。对普通文件、管道和 socket，都应根据接口需求循环：
+
+```c
+static int write_all(int fd, const void *data, size_t length) {
+    const unsigned char *cursor = data;
+    while (length > 0) {
+        ssize_t written = write(fd, cursor, length);
+        if (written > 0) {
+            cursor += written;
+            length -= (size_t)written;
+        } else if (written == -1 && errno == EINTR) {
+            continue;
+        } else {
+            return -1;
+        }
+    }
+    return 0;
+}
+```
+
+非阻塞 fd 还要处理 `EAGAIN`/`EWOULDBLOCK`，通常交给事件循环稍后重试。
+
+`close` 也可能失败。尤其是写入文件时，延迟错误可能在关闭时才暴露。失败后的 fd 状态具有平台细节，不能盲目循环 close 一个可能已被其他线程复用的整数。
+
+## `FILE *` 与 fd
+
+`FILE *` 是 C 流抽象，通常在 fd 之上增加缓冲、格式化和流状态。POSIX 提供：
+
+```c
+int fd = fileno(stdout);
+FILE *stream = fdopen(raw_fd, "w");
+```
+
+`fdopen` 失败时原 fd 仍由调用者负责；成功后 `fclose(stream)` 会同时关闭底层 fd。不要再单独 close 同一个 fd。
+
+不要在同一底层文件位置上无协议地混用 stdio 和 `read`/`write`。缓冲可能让两层看到不同的偏移和数据状态。切换前必须遵守相关同步规则，最简单的设计是一个资源只交给一层管理。
+
+## `dup2` 与重定向
+
+`dup2(old_fd, new_fd)` 让 `new_fd` 引用与 `old_fd` 相同的 open file description。若 `new_fd` 已打开，它会被原子关闭并替换。
+
+```c
+if (fflush(stdout) == EOF) {
+    perror("fflush");
+    return 1;
+}
+if (dup2(file_fd, STDOUT_FILENO) == -1) {
+    perror("dup2");
+    return 1;
+}
+```
+
+重定向 stdio 对应的 fd 前先刷新流，避免旧缓冲内容被写到新目标。`dup2` 成功后，如果不再需要原 fd，应关闭它。
+
+shell 执行 `command >output 2>&1` 的核心就是在 exec 前建立这样的描述符关系。
+
+## 管道与 EOF
+
+`pipe` 创建读端和写端：
+
+```text
+pipefd[1] --bytes--> pipefd[0]
+```
+
+fork 后父子进程都继承两端，必须立即关闭不使用的端点。只要任意进程仍持有写端，读端就不会看到 EOF。这是管道程序“已经写完却永远阻塞”的常见根因。
+
+小于等于 `PIPE_BUF` 的单次管道写入在阻塞模式下具有特定原子性保证，但不代表任意大小消息都不会交错。字节流也不保存应用消息边界。
 
 ## I/O 多路复用
 
-当需要同时监视多个 fd（网络连接、管道等），用 `select` 或 `poll` 避免逐个阻塞。
+`poll` 可以同时等待多个 fd：
 
 ```c
-#include <poll.h>
-#include <unistd.h>
-#include <stdio.h>
+struct pollfd descriptors[] = {
+    {.fd = input_fd, .events = POLLIN},
+    {.fd = socket_fd, .events = POLLIN},
+};
 
-// 同时监视 stdin 和另一个 fd
-void watch_two(int fd1, int fd2) {
-    struct pollfd fds[2] = {
-        { .fd = fd1, .events = POLLIN },
-        { .fd = fd2, .events = POLLIN },
-    };
-    int ready = poll(fds, 2, 5000); // 超时 5 秒
-    if (ready > 0) {
-        if (fds[0].revents & POLLIN) printf("fd1 readable\n");
-        if (fds[1].revents & POLLIN) printf("fd2 readable\n");
-    }
+int ready;
+do {
+    ready = poll(descriptors, 2, 5000);
+} while (ready == -1 && errno == EINTR);
+```
+
+返回后不仅要检查 `POLLIN`，还要处理 `POLLERR`、`POLLHUP` 和 `POLLNVAL`。可读表示一次读取不会按原条件阻塞，不保证能得到完整应用消息。
+
+Linux 的 `epoll` 和 macOS 的 `kqueue` 更适合大量 fd，但仍需正确处理非阻塞 I/O、部分完成和连接生命周期。
+
+## `mmap` 文件映射
+
+建立文件映射的基本流程：
+
+```text
+open -> 确认/设置文件长度 -> mmap -> 访问 -> munmap -> close
+```
+
+```c
+void *mapping = mmap(NULL, length, PROT_READ | PROT_WRITE,
+                     MAP_SHARED, fd, 0);
+if (mapping == MAP_FAILED) {
+    perror("mmap");
 }
 ```
 
-生产环境推荐 Linux `epoll` 或 macOS `kqueue`，但接口思想与 `poll` 一致。
+注意：
 
-## mmap 内存映射文件
+- 长度必须有效，零长度映射不可用。
+- 访问超过文件实际范围的映射页面可能触发 `SIGBUS`。
+- `MAP_SHARED` 修改对底层对象可见；`MAP_PRIVATE` 修改使用写时复制。
+- `msync(..., MS_SYNC)` 请求同步映射修改，但完整持久性还涉及文件系统和硬件语义。
+- 映射建立后通常可以关闭 fd，映射仍保持；但最终必须 `munmap`。
 
-将文件内容映射到进程地址空间，读写内存即读写文件，适合大文件随机访问。
+`mmap` 不保证比 `read` 更快。顺序流式处理、小文件和错误隔离需求都可能更适合普通 I/O。
 
-```c
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <string.h>
+## 常见错误
 
-int main(void) {
-    int fd = open("data.bin", O_RDWR | O_CREAT | O_TRUNC, 0644);
-    const char *text = "mmap demo data";
-    size_t len = strlen(text);
-    ftruncate(fd, len); // 设定文件大小
+- 把系统调用等同于一定发生上下文切换
+- 把 fd 直接等同于文件对象
+- 未处理短读、短写和 `EINTR`
+- `read` 返回 `-1` 后用负数作为数组索引
+- 忘记关闭管道的多余写端导致无 EOF
+- `fdopen` 成功后又 close 原 fd
+- 重定向前未刷新 stdio
+- 用 `mapping == NULL` 判断 mmap 失败
+- 映射空文件或访问超过文件长度
 
-    char *map = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    close(fd); // 映射建立后可关闭 fd
+## 检查点
 
-    memcpy(map, text, len);   // 写入
-    printf("read back: %.*s\n", (int)len, map);
+1. 两个通过 `dup` 得到的 fd 是否共享文件偏移？通常是。
+2. 为什么一次成功 `write` 也可能需要继续写？
+3. 为什么父进程保留管道写端会让读端等不到 EOF？
+4. `MAP_FAILED` 的值是否保证为 `NULL`？不保证。
 
-    munmap(map, len);
-    return 0;
-}
-```
+## 动手练习
 
-`MAP_SHARED` 修改会写回文件，`MAP_PRIVATE` 则写时复制。`msync` 可强制刷盘。
+1. 运行 `examples/17_syscalls_fd.c`，跟踪每个 fd 的创建、复制和关闭。
+2. 完成 `exercises/12_file_copy.c`，循环处理短读短写和 `EINTR`。
+3. 创建管道后故意不关闭一个写端，观察 EOF 等待，再修复。
+4. 映射一个临时文件，分别测试 `MAP_SHARED` 与 `MAP_PRIVATE` 的写入结果。

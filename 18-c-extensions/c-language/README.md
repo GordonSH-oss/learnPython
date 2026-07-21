@@ -119,6 +119,12 @@ make sanitize    # 使用 AddressSanitizer/UBSan 检查示例
 make clean       # 删除构建产物
 ```
 
+批量运行默认跳过需要创建本地监听端口的 Socket 集成示例，以适应受限 CI 或沙箱环境。在允许本地网络的环境中显式运行：
+
+```bash
+RUN_NETWORK_EXAMPLES=1 bash scripts/run_examples.sh
+```
+
 ## C 与 Python 的关键差异
 
 | Python | C |

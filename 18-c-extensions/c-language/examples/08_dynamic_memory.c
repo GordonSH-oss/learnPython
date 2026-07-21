@@ -1,16 +1,25 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 int main(void) {
     size_t count = 5;
+    if (count > SIZE_MAX / sizeof(int)) {
+        fputs("allocation size overflow\n", stderr);
+        return 1;
+    }
     int *squares = malloc(count * sizeof *squares);
     if (squares == NULL) {
         fputs("allocation failed\n", stderr);
         return 1;
     }
 
-    for (size_t i = 0; i < count; i++) squares[i] = (int)(i * i);
-    for (size_t i = 0; i < count; i++) printf("%d%c", squares[i], i + 1 == count ? '\n' : ' ');
+    for (size_t i = 0; i < count; i++) {
+        squares[i] = (int)(i * i);
+    }
+    for (size_t i = 0; i < count; i++) {
+        printf("%d%c", squares[i], i + 1 == count ? '\n' : ' ');
+    }
 
     free(squares);
     return 0;
