@@ -8,6 +8,7 @@
 - 判断一个指针是否可以安全解引用。
 - 使用指针遍历数组，并说明合法边界。
 - 使用输出参数修改调用者的数据。
+- 通过结构体指针访问成员，并读懂 `PyObject *` 这类声明。
 - 读懂 `const` 指针、`void *` 和二级指针。
 - 识别空指针、未初始化指针、悬空指针和越界指针。
 
@@ -166,6 +167,80 @@ swap(&x, &y);
 ```
 
 调用后 `x` 为 `20`，`y` 为 `10`。实际接口中，如果不允许传入 `NULL`，应在函数契约中明确这一前置条件。
+
+## 结构体指针
+
+指针不仅能指向 `int` 等基础类型，也能指向自定义的结构体类型。下面先用一个简化对象说明语法；结构体的定义、布局和 `typedef` 将在第 07 章继续展开。
+
+```c
+typedef struct {
+    long reference_count;
+    const char *type_name;
+} Object;
+
+Object value = {1, "integer"};
+Object *object = &value;
+```
+
+`object` 的类型是 `Object *`，即“指向 `Object` 的指针”。通过对象访问成员使用 `.`，通过结构体指针访问成员使用 `->`：
+
+这里的 `typedef` 把结构体类型命名为 `Object`。如果结构体只定义了标签 `struct Object`，对应的指针声明应写成 `struct Object *object`；使用 `typedef` 后才可以省略 `struct` 写成 `Object *object`。
+
+```c
+printf("%ld\n", value.reference_count);
+printf("%ld\n", object->reference_count);
+
+object->reference_count += 1;
+printf("%ld\n", value.reference_count); // 2
+```
+
+箭头运算符只是更易读的成员访问写法，以下两个表达式等价：
+
+```c
+object->reference_count
+(*object).reference_count
+```
+
+第二种写法中的括号不可省略，因为 `.` 的优先级高于一元 `*`。`*object.reference_count` 会被解释为 `*(object.reference_count)`，但 `object` 是指针，不能直接使用 `.` 访问成员。
+
+结构体指针也常作为函数参数。函数收到的仍然是地址值的副本，但可以通过它修改原结构体：
+
+```c
+void retain(Object *object) {
+    if (object != NULL) {
+        object->reference_count += 1;
+    }
+}
+
+void print_object(const Object *object) {
+    if (object != NULL) {
+        printf("%s: %ld\n", object->type_name, object->reference_count);
+    }
+}
+```
+
+`retain` 接收 `Object *`，允许修改所指对象；`print_object` 接收 `const Object *`，不能通过该指针修改结构体成员。两者都必须继续遵守普通指针的有效性规则：指针非空并不充分，对象还必须存活、类型匹配且允许访问。
+
+### 从自定义结构体到 `PyObject *`
+
+Python/C API 中经常出现：
+
+```c
+PyObject *object;
+```
+
+从 C 语法看，它和 `Object *object` 没有区别：`PyObject` 是一种对象类型，`object` 保存该类型对象的地址。函数也经常接收或返回这种指针：
+
+```c
+PyObject *result = PyLong_FromLong(42); // 失败时为 NULL
+```
+
+调用成功时，`result` 指向一个 Python 对象。与前面的局部 `Object value` 不同，Python/C API 管理这类对象的创建、类型规则和生命周期；调用者还必须检查错误并遵守“借用引用”与“强引用”等引用所有权约定。因此，理解 `PyObject *` 需要分成两层：
+
+1. C 层：它是一个带类型的结构体指针，适用本章的解引用、`const`、空指针和生命周期规则。
+2. Python/C API 层：应使用 `Py_TYPE`、`Py_INCREF`、`Py_DECREF` 等公开 API，并遵守每个函数的引用约定。
+
+前面的 `Object` 只是帮助理解指针语法的教学模型，并不是 CPython 中 `PyObject` 的真实定义。不要根据这个示例猜测 `PyObject` 的字段或内存布局，也不要直接访问未由公开 API 承诺的内部成员。
 
 ## 指针与数组
 
@@ -440,6 +515,14 @@ void inspect(int *values) {
 int values[] = {3, 6, 9};
 int *p = &values[1];
 int *end = values + 3;
+
+typedef struct {
+    int x;
+    int y;
+} Point;
+
+Point point = {4, 5};
+Point *point_ptr = &point;
 ```
 
 1. `*p` 的值是什么？
@@ -447,8 +530,10 @@ int *end = values + 3;
 3. `p + 1` 能否解引用？
 4. `end` 能否用于比较？
 5. `*end` 是否合法？
+6. `point_ptr->x` 的值是什么？
+7. `(*point_ptr).y` 与 `point_ptr->y` 是否等价？
 
-预期答案：依次为 `6`、`1`、可以且结果为 `9`、可以、不合法。
+预期答案：依次为 `6`、`1`、可以且结果为 `9`、可以、不合法、`4`、等价。
 
 ## 动手练习
 
@@ -457,5 +542,6 @@ int *end = values + 3;
 3. 编写 `swap` 并画出调用前后两个指针与两个整数对象的关系。
 4. 故意解引用数组的末尾后一指针，使用 AddressSanitizer 运行并阅读报告；随后修复循环边界。
 5. 修改 `redirect`，让 `replacement == NULL` 表示清空调用者的指针，并解释为什么仍然需要检查 `target`。
+6. 定义一个包含名称和计数值的结构体，分别编写接收 `StructName *` 的修改函数和接收 `const StructName *` 的打印函数，并使用 `->` 访问成员。
 
 完成后，你应能在解引用任意指针前回答四个核心问题：它指向什么、对象是否仍然存活、可以访问多少个元素、当前代码是否有权修改它。

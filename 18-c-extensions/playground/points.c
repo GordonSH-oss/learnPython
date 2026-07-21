@@ -1,11 +1,18 @@
 #include <stdio.h>
+void redirect(int **target, int *replacement) {
+    if (target != NULL) {
+        *target = replacement;
+    }
+}
 
-int main(void) {
-    int value = 42;
-    int *p = &value;
+int main() {
 
-    printf("before: value=%d, *p=%d\n", value, *p);
-    *p = 100;
-    printf("after:  value=%d, *p=%d\n", value, *p);
-    return 0;
+int first = 10;
+int second = 20;
+int *selected = &first;
+printf("%d\n", *selected); 
+
+redirect(&selected, &second);
+printf("%d\n", *selected); // 20
+return 0;
 }
