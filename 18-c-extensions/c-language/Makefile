@@ -9,7 +9,11 @@ SOLUTION_BINS := $(patsubst solutions/%.c,$(BUILD)/solutions/%,$(SOLUTION_SOURCE
 EXERCISE_SOURCES := $(wildcard exercises/*.c)
 EXERCISE_BINS := $(patsubst exercises/%.c,$(BUILD)/exercises/%,$(EXERCISE_SOURCES))
 
-.PHONY: help examples exercises solutions test sanitize clean
+PROJECT10 := examples/10-multi-file-project
+PROJECT21 := examples/21-multi-file-project
+PROJECT21_BUILD := $(abspath $(BUILD)/examples/21-multi-file-project)
+
+.PHONY: help examples exercises solutions test project21-test sanitize clean
 
 help:
 	@echo "make examples   编译全部示例"
@@ -19,7 +23,7 @@ help:
 	@echo "make sanitize   使用 ASan/UBSan 运行示例"
 	@echo "make clean      删除构建产物"
 
-examples: $(EXAMPLE_BINS) $(BUILD)/examples/10_multi_file
+examples: $(EXAMPLE_BINS) $(BUILD)/examples/10_multi_file $(PROJECT21_BUILD)/tasker
 
 exercises: $(EXERCISE_BINS)
 
@@ -29,9 +33,12 @@ $(BUILD)/examples/%: examples/%.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $< -o $@
 
-$(BUILD)/examples/10_multi_file: examples/10_multi_file.c examples/calculator.c examples/calculator.h
+$(BUILD)/examples/10_multi_file: $(PROJECT10)/10_multi_file.c $(PROJECT10)/calculator.c $(PROJECT10)/calculator.h
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) examples/10_multi_file.c examples/calculator.c -o $@
+	$(CC) $(CFLAGS) $(PROJECT10)/10_multi_file.c $(PROJECT10)/calculator.c -o $@
+
+$(PROJECT21_BUILD)/tasker: $(shell find $(PROJECT21) -type f \( -name '*.c' -o -name '*.h' -o -name Makefile \))
+	$(MAKE) -C $(PROJECT21) CC="$(CC)" CFLAGS="$(CFLAGS)" BUILD="$(PROJECT21_BUILD)" all
 
 $(BUILD)/examples/16_threads: examples/16_threads.c
 	@mkdir -p $(@D)
@@ -58,8 +65,11 @@ $(BUILD)/solutions/%: solutions/%.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $< -o $@
 
-test: examples solutions
+test: examples solutions project21-test
 	bash scripts/test.sh
+
+project21-test:
+	$(MAKE) -C $(PROJECT21) CC="$(CC)" CFLAGS="$(CFLAGS)" BUILD="$(PROJECT21_BUILD)" test
 
 sanitize: clean
 	$(MAKE) CFLAGS="$(CFLAGS) -fsanitize=address,undefined -fno-omit-frame-pointer" examples

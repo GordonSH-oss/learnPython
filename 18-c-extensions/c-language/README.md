@@ -51,10 +51,10 @@ clang -std=c17 -Wall -Wextra -Wpedantic examples/01_hello.c -o build/01_hello
 | 基础 | [04 函数与作用域](chapters/04-functions.md) | 如何拆分逻辑并传递数据？ | `04_functions.c` |
 | 基础 | [05 数组与字符串](chapters/05-arrays-and-strings.md) | 连续数据和文本如何存储？ | `05_arrays_strings.c` |
 | 核心 | [06 指针](chapters/06-pointers.md) | 地址、解引用和参数修改是什么？ | `06_pointers.c` |
-| 核心 | [07 结构体、枚举与联合](chapters/07-structs-enums.md) | 如何建立自己的数据模型？ | `07_structs.c` |
+| 核心 | [07 结构体、枚举与联合体](chapters/07-structs-enums.md) | 如何建立固定字段和多形态数据模型？ | `07_structs.c` |
 | 核心 | [08 动态内存](chapters/08-dynamic-memory.md) | 运行时大小未知的数据放在哪里？ | `08_dynamic_memory.c` |
 | 工程 | [09 文件与错误处理](chapters/09-files-and-errors.md) | 如何处理外部数据和失败？ | `09_files.c` |
-| 工程 | [10 多文件项目与构建](chapters/10-multi-file-projects.md) | 声明、定义和链接如何配合？ | `calculator.*` |
+| 工程 | [10 多文件项目与构建](chapters/10-multi-file-projects.md) | 模块如何逐层组装成大型工程？ | `calculator.*` |
 | 进阶 | [11 数据结构与函数指针](chapters/11-data-structures.md) | 如何实现可扩展的数据处理？ | `11_linked_list.c` |
 | 进阶 | [12 调试、测试与安全](chapters/12-debugging-testing.md) | 如何发现未定义行为并建立质量保障？ | 全部示例 |
 | 系统 | [13 预处理器与位操作](chapters/13-preprocessor-and-bits.md) | 宏、条件编译和位级运算如何工作？ | `13_preprocessor_bits.c` |
