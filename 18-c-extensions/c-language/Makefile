@@ -2,7 +2,7 @@ CC ?= clang
 CFLAGS := -std=c17 -Wall -Wextra -Wpedantic -g
 BUILD := build
 EXAMPLES := $(wildcard examples/*.c)
-SINGLE_EXAMPLES := $(filter-out examples/calculator.c examples/10_multi_file.c examples/18_mathlib.c,$(EXAMPLES))
+SINGLE_EXAMPLES := $(filter-out examples/18_mathlib.c examples/21_http_client.c,$(EXAMPLES))
 EXAMPLE_BINS := $(patsubst examples/%.c,$(BUILD)/examples/%,$(SINGLE_EXAMPLES))
 SOLUTION_SOURCES := $(wildcard solutions/*.c)
 SOLUTION_BINS := $(patsubst solutions/%.c,$(BUILD)/solutions/%,$(SOLUTION_SOURCES))
@@ -10,10 +10,11 @@ EXERCISE_SOURCES := $(wildcard exercises/*.c)
 EXERCISE_BINS := $(patsubst exercises/%.c,$(BUILD)/exercises/%,$(EXERCISE_SOURCES))
 
 PROJECT10 := examples/10-multi-file-project
-PROJECT21 := examples/21-multi-file-project
-PROJECT21_BUILD := $(abspath $(BUILD)/examples/21-multi-file-project)
+CURL_CFLAGS := $(shell curl-config --cflags)
+CURL_LIBS := $(shell curl-config --libs)
+PROJECT10_BUILD := $(abspath $(BUILD)/examples/10-multi-file-project)
 
-.PHONY: help examples exercises solutions test project21-test sanitize clean
+.PHONY: help examples exercises solutions test project10-test sanitize clean
 
 help:
 	@echo "make examples   编译全部示例"
@@ -23,7 +24,7 @@ help:
 	@echo "make sanitize   使用 ASan/UBSan 运行示例"
 	@echo "make clean      删除构建产物"
 
-examples: $(EXAMPLE_BINS) $(BUILD)/examples/10_multi_file $(PROJECT21_BUILD)/tasker
+examples: $(EXAMPLE_BINS) $(PROJECT10_BUILD)/tasker $(BUILD)/examples/21_http_client
 
 exercises: $(EXERCISE_BINS)
 
@@ -33,12 +34,12 @@ $(BUILD)/examples/%: examples/%.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $< -o $@
 
-$(BUILD)/examples/10_multi_file: $(PROJECT10)/10_multi_file.c $(PROJECT10)/calculator.c $(PROJECT10)/calculator.h
-	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) $(PROJECT10)/10_multi_file.c $(PROJECT10)/calculator.c -o $@
+$(PROJECT10_BUILD)/tasker: $(shell find $(PROJECT10) -type f \( -name '*.c' -o -name '*.h' -o -name Makefile \))
+	$(MAKE) -C $(PROJECT10) CC="$(CC)" CFLAGS="$(CFLAGS)" BUILD="$(PROJECT10_BUILD)" all
 
-$(PROJECT21_BUILD)/tasker: $(shell find $(PROJECT21) -type f \( -name '*.c' -o -name '*.h' -o -name Makefile \))
-	$(MAKE) -C $(PROJECT21) CC="$(CC)" CFLAGS="$(CFLAGS)" BUILD="$(PROJECT21_BUILD)" all
+$(BUILD)/examples/21_http_client: examples/21_http_client.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(CURL_CFLAGS) $< $(CURL_LIBS) -o $@
 
 $(BUILD)/examples/16_threads: examples/16_threads.c
 	@mkdir -p $(@D)
@@ -65,11 +66,11 @@ $(BUILD)/solutions/%: solutions/%.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $< -o $@
 
-test: examples solutions project21-test
+test: examples solutions project10-test
 	bash scripts/test.sh
 
-project21-test:
-	$(MAKE) -C $(PROJECT21) CC="$(CC)" CFLAGS="$(CFLAGS)" BUILD="$(PROJECT21_BUILD)" test
+project10-test:
+	$(MAKE) -C $(PROJECT10) CC="$(CC)" CFLAGS="$(CFLAGS)" BUILD="$(PROJECT10_BUILD)" test
 
 sanitize: clean
 	$(MAKE) CFLAGS="$(CFLAGS) -fsanitize=address,undefined -fno-omit-frame-pointer" examples

@@ -1,6 +1,6 @@
 # C 语言系统学习教程
 
-这套材料面向 C 语言零基础学习者，也适合已经会 Python、希望理解内存、编译和 CPython 底层机制的开发者。课程基于 C17，示例只使用标准库，可以使用 Clang 或 GCC 编译。
+这套材料面向 C 语言零基础学习者，也适合已经会 Python、希望理解内存、编译和 CPython 底层机制的开发者。课程基于 C17，前 20 章主要使用标准库和 POSIX API；第 21 章使用 libcurl 演示第三方 C 库的集成。可以使用 Clang 或 GCC 编译。
 
 ## 学完以后你能做什么
 
@@ -11,6 +11,7 @@
 - 编写有清晰接口、错误处理和自动测试的小型 C 项目。
 - 理解进程、线程、系统调用、文件描述符和虚拟内存等操作系统核心概念。
 - 使用 socket 编写网络程序，使用 dlopen 实现插件系统。
+- 使用头文件、回调和链接参数集成 libcurl 等第三方库。
 - 为后续学习 Python/C API 和 CPython 源码建立基础。
 
 ## 环境准备
@@ -54,7 +55,7 @@ clang -std=c17 -Wall -Wextra -Wpedantic examples/01_hello.c -o build/01_hello
 | 核心 | [07 结构体、枚举与联合体](chapters/07-structs-enums.md) | 如何建立固定字段和多形态数据模型？ | `07_structs.c` |
 | 核心 | [08 动态内存](chapters/08-dynamic-memory.md) | 运行时大小未知的数据放在哪里？ | `08_dynamic_memory.c` |
 | 工程 | [09 文件与错误处理](chapters/09-files-and-errors.md) | 如何处理外部数据和失败？ | `09_files.c` |
-| 工程 | [10 多文件项目与构建](chapters/10-multi-file-projects.md) | 模块如何逐层组装成大型工程？ | `calculator.*` |
+| 工程 | [10 多文件项目与构建](chapters/10-multi-file-projects.md) | 模块如何逐层组装成大型工程？ | `10-multi-file-project/` |
 | 进阶 | [11 数据结构与函数指针](chapters/11-data-structures.md) | 如何实现可扩展的数据处理？ | `11_linked_list.c` |
 | 进阶 | [12 调试、测试与安全](chapters/12-debugging-testing.md) | 如何发现未定义行为并建立质量保障？ | 全部示例 |
 | 系统 | [13 预处理器与位操作](chapters/13-preprocessor-and-bits.md) | 宏、条件编译和位级运算如何工作？ | `13_preprocessor_bits.c` |
@@ -65,6 +66,7 @@ clang -std=c17 -Wall -Wextra -Wpedantic examples/01_hello.c -o build/01_hello
 | 系统 | [18 共享库与动态链接](chapters/18-shared-libraries.md) | .so/.dylib 如何加载和链接？ | `18_shared_libs.c` |
 | 系统 | [19 Socket 网络编程](chapters/19-socket-programming.md) | 如何用 C 进行网络通信？ | `19_socket.c` |
 | 系统 | [20 Unix/POSIX API 实战](chapters/20-unix-posix-api-practice.md) | 如何在 Apple Silicon Mac 上查询和操作 Unix 系统资源？ | `20_unix_api.c` |
+| 工程 | [21 第三方库与 libcurl HTTP 客户端](chapters/21-external-libraries-http.md) | 如何引入第三方 C 库并处理 HTTP？ | `21_http_client.c` |
 
 建议每章按这个顺序学习：读章节、手敲示例、先预测输出、编译运行、完成练习、查看答案、修改输入再次验证。
 
