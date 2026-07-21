@@ -3,6 +3,7 @@
 
 #include <limits.h>
 #include <stdint.h>
+#include <string.h>
 
 static PyObject *mymath_sum_squares(PyObject *module, PyObject *argument) {
     (void)module;
@@ -66,6 +67,37 @@ static PyObject *mymath_count_byte(PyObject *module, PyObject *args) {
     return PyLong_FromSsize_t(count);
 }
 
+static PyObject *mymath_sum_doubles_buffer(PyObject *module, PyObject *argument) {
+    (void)module;
+    Py_buffer view;
+    if (PyObject_GetBuffer(argument, &view,
+                           PyBUF_FORMAT | PyBUF_C_CONTIGUOUS) < 0) {
+        return NULL;
+    }
+
+    PyObject *result = NULL;
+    if (view.ndim != 1 || view.itemsize != (Py_ssize_t)sizeof(double) ||
+        view.format == NULL || strcmp(view.format, "d") != 0 ||
+        view.len % (Py_ssize_t)sizeof(double) != 0) {
+        PyErr_SetString(PyExc_TypeError,
+                        "values must be a one-dimensional contiguous "
+                        "native-double buffer");
+        goto cleanup;
+    }
+
+    const double *values = view.buf;
+    Py_ssize_t length = view.len / (Py_ssize_t)sizeof(double);
+    double total = 0.0;
+    for (Py_ssize_t index = 0; index < length; ++index) {
+        total += values[index];
+    }
+    result = PyFloat_FromDouble(total);
+
+cleanup:
+    PyBuffer_Release(&view);
+    return result;
+}
+
 static PyMethodDef mymath_methods[] = {
     {
         "sum_squares",
@@ -80,6 +112,13 @@ static PyMethodDef mymath_methods[] = {
         METH_VARARGS,
         PyDoc_STR("count_byte(data, needle, /) -> int\n"
                   "Count a one-byte needle in a bytes-like object."),
+    },
+    {
+        "sum_doubles_buffer",
+        mymath_sum_doubles_buffer,
+        METH_O,
+        PyDoc_STR("sum_doubles_buffer(values, /) -> float\n"
+                  "Sum a contiguous native-double buffer without copying."),
     },
     {NULL, NULL, 0, NULL},
 };

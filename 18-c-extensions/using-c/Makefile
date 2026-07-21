@@ -18,7 +18,7 @@ endif
 
 EXTENSION := $(BUILD)/mymath$(EXT_SUFFIX)
 
-.PHONY: all ctypes extension cython test benchmark clean help
+.PHONY: all ctypes extension cython test benchmark demos clean help
 
 all: ctypes extension
 
@@ -44,6 +44,10 @@ test: all
 benchmark: all
 	PYTHONPATH=$(BUILD) USING_C_BUILD=$(BUILD) $(PYTHON) benchmark.py
 
+demos: all
+	USING_C_BUILD=$(BUILD) $(PYTHON) ctypes_demo.py
+	PYTHONPATH=$(BUILD) $(PYTHON) c_extension_demo.py
+
 clean:
 	rm -rf $(BUILD) cython_example.c
 
@@ -51,5 +55,6 @@ help:
 	@echo "make all        构建 ctypes 动态库和 Python/C API 扩展"
 	@echo "make test       运行正确性和错误契约测试"
 	@echo "make benchmark  比较 Python、ctypes 和 C 扩展性能"
+	@echo "make demos      运行 ctypes 和 Python/C API 演示"
 	@echo "make cython     构建可选 Cython 示例（需安装 Cython/setuptools）"
 	@echo "make clean      删除构建产物"

@@ -1,12 +1,13 @@
 /*
  * list_internals.c — CPython list 内部实现注释版
  *
- * 从 Objects/listobject.c 提取的关键实现，展示：
+ * 概念伪代码，展示：
  * - list 的内存布局
  * - append 的 O(1) 均摊复杂度如何实现
  * - 扩容策略
  *
- * 对应源码: Include/cpython/listobject.h, Objects/listobject.c
+ * 精确布局和扩容算法必须查看目标 CPython tag 的
+ * Include/cpython/listobject.h 与 Objects/listobject.c。
  */
 
 /* ============================================================
@@ -47,10 +48,9 @@ list_resize(PyListObject *self, Py_ssize_t newsize)
         return 0;
     }
 
-    /* 核心扩容公式: new = newsize + newsize/8 + 小常数
-     * 这给出约 12.5% 的过分配，是 O(1) 均摊的关键 */
-    new_allocated = (newsize >> 3) + (newsize < 9 ? 3 : 6);
-    new_allocated += newsize;
+    /* 伪代码：选择大于 newsize 的容量并检查溢出。
+     * 精确公式、对齐和是否过分配属于版本敏感实现细节。 */
+    new_allocated = choose_capacity_for_current_version(newsize);
 
     items = (PyObject **)PyMem_Realloc(
         self->ob_item,
@@ -65,9 +65,6 @@ list_resize(PyListObject *self, Py_ssize_t newsize)
 }
 
 /*
- * 扩容序列举例（实际容量）:
- *   0 → 4 → 8 → 16 → 25 → 35 → 46 → 58 → 72 → 88 ...
- *
- * 对比 Java ArrayList 的 1.5x 策略和 C++ vector 的 2x 策略，
- * CPython 选择了更保守的 ~1.125x，节省内存。
+ * 稳定结论：list 使用动态引用数组，append 通常具有均摊 O(1) 复杂度。
+ * 不要把某个版本观察到的容量序列写进扩展 ABI 或业务逻辑。
  */

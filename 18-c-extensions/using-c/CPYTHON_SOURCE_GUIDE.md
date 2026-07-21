@@ -1,235 +1,235 @@
 # CPython 源码阅读指南
 
-## CPython 是什么？
+## 这份指南的定位
 
-CPython 是 Python 的官方实现，用 C 语言编写。当你运行 `python xxx.py` 时，
-实际在运行的就是 CPython 解释器。理解它的源码能让你：
+CPython 源码阅读能帮助你理解 Python/C API 背后的对象、解释器和内存机制，但它不是编写扩展的稳定接口文档。扩展代码应优先使用公开 Python/C API，不要复制内部结构、私有函数或某个版本的宏实现。
 
-- 真正明白 Python 的语义（为什么 list 比 tuple 慢？为什么 dict 查找是 O(1)？）
-- 理解 GIL、引用计数、垃圾回收
-- 写出更高效的 Python 代码
-- 具备给 CPython 贡献代码的能力
-
-## 获取源码
+CPython 内部会随版本、构建选项和实验特性变化。阅读前必须固定一个 tag，并始终把页面或笔记标注到该版本：
 
 ```bash
 git clone https://github.com/python/cpython.git
 cd cpython
-git checkout v3.12.0  # 选一个稳定版本
+git checkout v3.14.0   # 示例；选择与你实际使用的版本一致的 tag
 ```
 
-## 目录结构
+不要一边阅读 `main` 分支，一边用旧博客中的 3.10 结构解释代码。
 
-```
-cpython/
-├── Include/          # 公开的 C 头文件（PyObject, PyListObject 等）
-│   ├── object.h      # PyObject 基础定义
-│   ├── listobject.h  # list 类型声明
-│   └── dictobject.h  # dict 类型声明
-├── Objects/          # 内建对象的实现（最重要！）
-│   ├── object.c      # 引用计数、通用对象操作
-│   ├── listobject.c  # list 的全部实现
-│   ├── dictobject.c  # dict 的全部实现
-│   ├── longobject.c  # int 的实现（Python 3 的 int 是大整数）
-│   └── typeobject.c  # type 和类机制
-├── Python/           # 解释器核心
-│   ├── ceval.c       # 字节码执行循环（巨大但核心）
-│   ├── compile.c     # AST → 字节码编译器
-│   └── import.c      # import 机制
-├── Modules/          # 标准库的 C 实现
-│   ├── _io/          # io 模块
-│   ├── _json.c       # json 的 C 加速
-│   └── mathmodule.c  # math 模块
-├── Parser/           # 语法解析器
-└── Lib/              # 标准库的 Python 实现
-```
+## 学习目标
 
-## 核心概念 1：PyObject — 万物之源
+阅读完成后，你应该能够：
 
-Python 中所有值都是对象，在 C 层面都是 `PyObject *` 指针。
+- 从一个 Python 行为定位到公开 API、类型 slot 和具体实现函数
+- 区分 stable/public API、CPython-specific API 和内部私有实现
+- 解释对象头、类型对象、引用所有权和循环 GC 的职责边界
+- 识别传统 GIL 构建、free-threaded 构建和 immortal objects 对旧心智模型的影响
+- 使用测试、`dis`、debug build 和调试器验证源码理解
 
-```c
-// Include/object.h（简化版）
-typedef struct _object {
-    Py_ssize_t ob_refcnt;    // 引用计数
-    PyTypeObject *ob_type;   // 类型指针（指向 int、str、list 等类型对象）
-} PyObject;
+## 源码目录地图
+
+常见入口如下；精确文件会随版本调整：
+
+```text
+Include/             公开和 CPython-specific 头文件
+Include/cpython/     通常不是 Limited API 的具体结构或接口
+Include/internal/    CPython 内部接口，不供普通扩展使用
+Objects/             list、dict、long、type 等对象实现
+Python/              执行器、编译、解释器状态和运行时核心
+Modules/             标准库 C 模块和示例扩展
+Parser/              解析器相关实现
+Lib/                 Python 编写的标准库
+Tools/               构建、调试和开发工具
 ```
 
-**关键洞察：**
-- 每个 Python 对象的内存开头都是这个结构
-- `ob_refcnt` 降到 0 时对象被释放
-- `ob_type` 决定了对象支持的操作（加减乘除、索引、迭代等）
+先查看当前 tag 的实际目录，不要把这张地图当成永久文件清单。
 
-变长对象多一个字段：
+## 三层 API 边界
 
-```c
-typedef struct {
-    PyObject ob_base;
-    Py_ssize_t ob_size;      // 元素个数
-} PyVarObject;
+阅读任何符号前，先判断它属于哪一层：
+
+| 层次 | 常见位置或标记 | 扩展能否依赖 |
+| --- | --- | --- |
+| Limited API / Stable ABI | 受 `Py_LIMITED_API` 约束的公开 API | 可用于更宽 CPython 版本范围，但功能是子集 |
+| CPython public API | `Python.h` 暴露但可能绑定 CPython 小版本 ABI | 普通 CPython 扩展可用，需要按支持版本构建测试 |
+| Internal API | `_Py` 前缀、`Include/internal`、实现文件私有符号 | 不应由第三方扩展依赖 |
+
+看到一个 `_Py...` 函数能解决问题，不代表它适合复制到扩展中。
+
+## 对象模型：使用概念图，不背字段布局
+
+传统教学模型是：
+
+```text
+PyObject-compatible prefix
+├── 引用管理相关状态
+└── 类型指针 -> PyTypeObject
 ```
 
-`list`、`tuple`、`str` 都是 `PyVarObject`。
+变长对象还具有逻辑长度信息。具体字段类型、顺序和宏展开可能因版本、debug、trace-refs、free-threaded 或其他构建选项变化。
 
-## 核心概念 2：引用计数
+稳定结论是：
 
-```c
-// Include/object.h
-#define Py_INCREF(op)  (++(op)->ob_refcnt)
-#define Py_DECREF(op)  do { \
-    if (--(op)->ob_refcnt == 0) \
-        _Py_Dealloc(op);       \
-} while (0)
+- Python/C API 通过 `PyObject *` 表示一般 Python 对象。
+- 类型决定对象支持的协议和 slot。
+- 扩展应通过 `Py_INCREF`、`Py_DECREF`、类型检查和公开访问 API 操作对象。
+- 不应在第三方扩展中直接修改 `ob_refcnt` 或猜测对象内存布局。
+
+## 引用所有权
+
+阅读函数时，为每个 `PyObject *` 标注：
+
+```text
+borrowed   当前代码不拥有
+new/strong 当前代码拥有，必须转交或 DECREF
+stolen     被调用函数成功后接管当前引用
 ```
 
-在 C 扩展中必须正确管理引用计数，否则会内存泄漏或崩溃：
-- 接收"借用引用"：不需要 DECREF
-- 接收"新引用"：用完后必须 DECREF
-- 返回值给 Python：返回"新引用"
+检查失败路径时画资源表：
 
-## 核心概念 3：类型对象
+| 资源 | 获取位置 | 成功时去向 | 失败时释放 |
+| --- | --- | --- | --- |
+| 临时 tuple | `PyTuple_New` | 返回或放入容器 | `Py_DECREF` |
+| 元素引用 | API 返回约定 | 转交/保存 | 根据 borrowed/new 决定 |
+| `Py_buffer` | `PyObject_GetBuffer` | 只在调用期间使用 | `PyBuffer_Release` |
 
-```c
-// 每种类型都有一个 PyTypeObject，定义了该类型的全部行为
-PyTypeObject PyList_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
-    "list",                          // tp_name
-    sizeof(PyListObject),            // tp_basicsize
-    ...
-    (reprfunc)list_repr,             // tp_repr   → repr(x)
-    &list_as_sequence,               // tp_as_sequence → x[i], len(x)
-    &list_as_mapping,                // tp_as_mapping  → x[k]
-    ...
-    list_methods,                    // tp_methods → x.append(), x.sort()
-};
-```
+引用计数归零通常触发对象析构流程，但不能把“每个变量赋值都简单 +1”“每个对象都能观察到普通递增计数”当成现代 CPython 的完整模型。immortal objects、优化和 free-threaded 实现会改变内部细节。扩展只依赖公开引用 API 的语义。
 
-当你写 `my_list.append(1)` 时，CPython 会：
-1. 通过 `my_list->ob_type` 找到 `PyList_Type`
-2. 在 `tp_methods` 表中查找 `"append"`
-3. 调用对应的 C 函数 `list_append()`
+循环引用由 cyclic GC 处理，而不是单靠引用计数。拥有容器字段的自定义类型需要正确实现 traverse 和 clear 协议。
 
-## 实战：阅读 list.append 的实现
+## 类型对象和 slot
 
-打开 `Objects/listobject.c`，搜索 `list_append`：
+`PyTypeObject` 描述类型行为。阅读一个 Python 操作时，先把语法映射到协议：
 
-```c
-static PyObject *
-list_append(PyListObject *self, PyObject *object)
-{
-    if (app1(self, object) == 0)   // 核心逻辑在 app1()
-        Py_RETURN_NONE;
-    return NULL;
-}
+| Python 行为 | 可能相关的 API/slot |
+| --- | --- |
+| `len(obj)` | sequence/mapping length slot |
+| `obj[index]` | mapping 或 sequence subscription |
+| `a + b` | number add slot和通用分派 |
+| `iter(obj)` | iteration slot |
+| `obj.name` | attribute access、descriptor protocol |
+| `obj()` | call/vectorcall 路径 |
 
-static int
-app1(PyListObject *self, PyObject *v)
-{
-    Py_ssize_t n = PyList_GET_SIZE(self);
+不要假定方法调用只是在线性 `tp_methods` 数组中搜索。现代 CPython 包含描述符、缓存、vectorcall 和专门化等多层机制。
 
-    // 检查是否需要扩容
-    if (list_resize(self, n + 1) < 0)
-        return -1;
+## 从行为追踪 list
 
-    // 增加引用计数，存入数组
-    Py_INCREF(v);
-    self->ob_item[n] = v;
-    return 0;
-}
-```
+以 `list.append` 为例：
 
-**你能看出：**
-- `list` 底层是一个 C 数组（`ob_item`）
-- `append` 可能触发 `list_resize`（类似 C++ vector 的扩容）
-- 新元素直接放到数组末尾，所以是 O(1) 均摊
+1. 在 Python 中写最小行为和边界测试。
+2. 使用 `list.append.__doc__`、公开 C API 文档确认契约。
+3. 在当前 tag 搜索 `list.append` 的 Argument Clinic 生成入口或实现函数。
+4. 继续跟到调整容量和写入元素的位置。
+5. 标注错误返回、引用所有权和锁/GIL 假设。
 
-## 实战：阅读 dict 的实现
+可以确认的高层模型是：list 保存对象引用的动态数组，append 通常具有均摊 O(1) 复杂度。具体过分配公式和同步实现属于版本细节，必须从所选 tag 的真实 `listobject.c` 验证。
 
-`Objects/dictobject.c` 是 Python 中最精妙的实现之一。
+配套的 `list_internals.c` 只是一份概念伪代码，不是可复制实现。
 
-```c
-// Include/cpython/dictobject.h（简化）
-typedef struct {
-    PyObject_HEAD
-    Py_ssize_t ma_used;        // 已存储的键值对数量
-    PyDictKeysObject *ma_keys; // 键数组（compact dict since 3.6）
-    PyObject **ma_values;      // 值数组
-} PyDictObject;
-```
+## 从行为追踪 dict
 
-dict 使用开放地址法哈希表，Python 3.6+ 使用紧凑布局保证插入顺序。
+建议问题：
 
-## 实战：字节码执行循环
+- 哈希值在哪里计算和缓存？
+- 查找如何处理碰撞？
+- 插入顺序由哪些结构保存？
+- resize 的触发条件是什么？
+- split/combined table 在当前版本如何使用？
+- free-threaded 构建需要哪些同步或临界区？
 
-`Python/ceval.c` 中的 `_PyEval_EvalFrameDefault` 是 Python 的心脏：
+“平均 O(1)”是算法复杂度结论，不代表每次操作固定成本，也不代表恶意碰撞、resize 或对象比较没有影响。
 
-```c
-// 极度简化版
-for (;;) {
-    opcode = NEXTOP();     // 取下一条字节码
-    switch (opcode) {
-        case LOAD_FAST:     // 加载局部变量
-            value = GETLOCAL(oparg);
-            PUSH(value);
-            break;
-        case BINARY_ADD:    // a + b
-            right = POP();
-            left = TOP();
-            result = PyNumber_Add(left, right);
-            SET_TOP(result);
-            break;
-        case CALL_FUNCTION: // 函数调用
-            ...
-            break;
-    }
-}
-```
+## 字节码与执行器
 
-用 `dis` 模块可以查看任何 Python 函数的字节码：
+先用当前解释器查看字节码：
 
 ```python
 import dis
-def foo(a, b):
-    return a + b
 
-dis.dis(foo)
-# LOAD_FAST  0 (a)
-# LOAD_FAST  1 (b)
-# BINARY_ADD
-# RETURN_VALUE
+def add(left, right):
+    return left + right
+
+dis.dis(add, adaptive=True, show_caches=True)
 ```
 
-## 推荐阅读顺序
+现代 CPython 可能使用 adaptive specialization、inline cache 和生成的 opcode case。旧资料中的 `BINARY_ADD`、`CALL_FUNCTION` 或固定 `switch` 结构可能已经不对应当前版本。
 
-| 阶段 | 文件 | 你会学到 |
-|------|------|---------|
-| 1 | `Include/object.h` | PyObject 结构、引用计数宏 |
-| 2 | `Objects/listobject.c` | 动态数组实现、扩容策略 |
-| 3 | `Objects/longobject.c` | 大整数如何存储和运算 |
-| 4 | `Objects/dictobject.c` | 哈希表、开放地址法、紧凑布局 |
-| 5 | `Python/ceval.c` | 字节码执行、栈帧、GIL |
-| 6 | `Objects/typeobject.c` | 类继承、MRO、描述符协议 |
-| 7 | `Modules/gcmodule.c` | 分代垃圾回收、循环引用检测 |
+阅读顺序：
 
-## 阅读技巧
+1. `dis` 输出当前 opcode。
+2. 搜索 opcode 定义、生成模板或 executor 实现。
+3. 找到 fallback 的通用对象操作。
+4. 比较首次执行和热身后的专门化行为。
 
-1. **从你熟悉的 Python 行为出发** — 比如想知道 `list.sort()` 用什么算法？
-   搜索 `list_sort` → 发现是 TimSort
-2. **用 `dis` 模块找入口** — 反汇编代码看到字节码名称，
-   然后到 `ceval.c` 搜索对应的 case
-3. **忽略宏展开** — 先理解逻辑，不要深入每一个宏定义
-4. **关注数据结构** — 先看 `.h` 文件里的 struct 定义，
-   再看 `.c` 文件里的操作函数
-5. **用 IDE 的跳转功能** — VSCode + clangd 可以跳转到定义
+不要先假定所有版本都在 `Python/ceval.c` 的同一个巨大 switch 中执行。
 
-## 工具
+## GIL、解释器和 free-threaded
+
+阅读并发实现时先确认构建类型：
+
+- 传统 GIL 构建
+- 可选 free-threaded 构建
+- subinterpreter 和 per-interpreter 状态
+
+问题清单：
+
+- 当前代码需要持有什么锁或 critical section？
+- 对象是否可能被另一个线程修改？
+- 全局状态是 process-wide 还是 per-interpreter？
+- borrowed reference 在并发修改下是否仍稳定？
+- 扩展是否声明或实际支持 free-threaded 运行？
+
+不要把“持有 GIL 所以所有 C 全局状态安全”作为长期扩展设计。
+
+## 推荐阅读路线
+
+| 阶段 | 目标 | 推荐入口 |
+| --- | --- | --- |
+| 1 | 扩展模块生命周期 | `Modules/` 中较小模块、module definition |
+| 2 | 对象和引用 API | `Include/object.h`、公开 C API 文档 |
+| 3 | list 动态数组 | `Objects/listobject.c` |
+| 4 | long 任意精度整数 | `Objects/longobject.c` |
+| 5 | dict 哈希表 | `Objects/dictobject.c` |
+| 6 | 类型与 descriptor | `Objects/typeobject.c` |
+| 7 | 字节码执行和专门化 | `Python/`、generated cases、`dis` |
+| 8 | GC 和解释器状态 | GC、interpreter/runtime state 相关文件 |
+
+每次只追踪一个可观察行为，不要按目录从头通读。
+
+## 验证工具
+
+构建 debug CPython：
 
 ```bash
-# 编译 debug 版 CPython（可以 gdb 调试）
 ./configure --with-pydebug
 make -j4
-
-# 反汇编 Python 代码查看字节码
-python -m dis your_script.py
+./python -X dev -m test test_list
 ```
+
+常用工具：
+
+```bash
+git grep 'symbol_name'
+./python -m dis script.py
+lldb -- ./python -c 'code'
+```
+
+给源码加日志前先写一个最小测试。修改实现后运行对应 CPython 测试，不要只运行自己的演示脚本。
+
+## 阅读记录模板
+
+每次源码追踪记录：
+
+```text
+CPython tag / commit:
+构建选项:
+Python 可观察行为:
+公开 API 契约:
+入口符号:
+关键调用路径:
+对象/资源所有权:
+异常或错误返回:
+锁/GIL 假设:
+版本敏感实现细节:
+验证测试:
+```
+
+最终目标不是背诵结构体字段，而是能从公开行为追踪到实现，再回到公开契约判断哪些知识可以用于扩展设计。

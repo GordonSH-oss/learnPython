@@ -94,6 +94,8 @@ c_values = array_type(*data)
 
 C 不应在调用结束后保存 `c_values` 的指针，除非接口另有所有权协议并让 Python 对象保持存活。否则 Python 回收数组后会留下悬空指针。
 
+配套代码还提供 `sum_doubles_buffer(array('d', ...))`。它通过 `memoryview` 验证一维、C 连续、native `double` 格式，再用 `ctypes.from_buffer` 直接借用原数组。这个版本没有逐元素复制，但要求缓冲区可写，因为 `from_buffer` 需要从可写 exporter 建立视图。完整机制见第 04 章。
+
 ## 字节串为什么要显式长度
 
 `count_byte` 接收 `(const char *data, size_t length, char needle)`，所以能处理嵌入 `\0`：
@@ -113,6 +115,10 @@ count_byte(b"a\x00a", b"a")  # 2
 - 错误的 `argtypes` 可能破坏寄存器或栈参数。
 - C 函数若未释放 GIL，Python 线程调用行为还取决于加载器和函数类型。
 
+`ctypes.CDLL` 调用外部函数时通常会在调用期间释放 GIL；`ctypes.PyDLL` 则用于调用 Python C API，会保留 GIL并在返回后检查 Python 异常。释放 GIL 不会自动让底层 C 库线程安全。若两个 Python 线程同时调用同一 C 全局状态，库本身仍必须同步。
+
+回调方向更危险：C 保存 Python 回调函数地址时，Python 回调对象必须保持强引用，调用线程和回调生命周期必须明确，且回调抛出的异常不能像普通 Python 调用一样自然穿过任意 C 栈帧。生产接口应优先采用同步、调用期间有效的回调，避免让 C 长期保存裸回调指针。
+
 因此 C ABI 应尽量窄、使用明确长度和固定类型，并为每个失败返回写测试。
 
 ## 动手练习
@@ -120,3 +126,5 @@ count_byte(b"a\x00a", b"a")  # 2
 1. 运行 `make test`，确认嵌入 `NUL`、负数和溢出测试通过。
 2. 给 C 库增加 `int min_double(const double *, size_t, double *)`。空数组返回 `-1`，并在 Python 包装层转换为 `ValueError`。
 3. 暂时删掉 `sum_squares.restype`，观察小输入是否仍看似正确。解释为什么“示例能运行”不能证明 ABI 声明正确，然后恢复代码。
+4. 比较 `sum_doubles` 和 `sum_doubles_buffer`，画出两者创建的 Python list、C 数组和借用指针。
+5. 查询 `ctypes.CDLL(..., use_errno=True)`，设计一个调用 POSIX API 后立即保存 `errno` 的包装器。

@@ -1,8 +1,12 @@
-# cython: language_level=3, boundscheck=False, wraparound=False
+# cython: language_level=3
 
 """Typed Cython implementation of the Sieve of Eratosthenes."""
 
+import cython
 
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
 def primes(int limit):
     if limit < 2:
         return []

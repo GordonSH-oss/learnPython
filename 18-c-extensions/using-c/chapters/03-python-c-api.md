@@ -102,6 +102,19 @@ Py_END_ALLOW_THREADS
 
 解析成功后，输入 Python 对象在函数调用期间保持存活，因此指针在返回前有效。函数不能把该指针保存到全局并在以后使用。
 
+`mymath.sum_doubles_buffer` 使用通用 buffer protocol 接受 `array('d')` 等连续 native-double 数据。它必须在所有成功和失败路径调用 `PyBuffer_Release`。详细的格式、shape、stride、只读和并发约束见第 04 章。
+
+## 模块状态与全局变量
+
+示例模块没有可变全局状态，因此使用简单的单阶段初始化足够。生产扩展若保存缓存、类型对象或配置，应优先把状态放入模块状态，而不是普通 C 全局变量。原因包括：
+
+- 一个进程可能创建多个解释器。
+- 模块可能经历清理和重新创建。
+- free-threaded CPython 会让隐藏全局状态更容易产生数据竞争。
+- 测试之间共享全局状态会形成顺序依赖。
+
+模块定义中的 `m_size` 为正时，CPython 可以为每个模块实例分配状态。更复杂扩展应学习多阶段初始化、module slots、traverse/clear/free 回调和 heap type；不要把一个教学用的 `m_size = 0` 模块直接扩展成全局可变对象仓库。
+
 ## 崩溃影响
 
 扩展与解释器运行在同一进程。越界访问、错误引用计数或空指针解引用会使整个 Python 进程崩溃，而不是产生普通 Python 异常。调试时先构建带符号版本，并使用：
@@ -115,3 +128,5 @@ lldb -- python3 -c 'import sys; sys.path.insert(0, "build"); import mymath; prin
 1. 增加 `triangular_number(n)`，对类型、负数和 `int64_t` 溢出分别测试。
 2. 故意让参数错误分支返回 `Py_None` 而保留异常，运行测试观察协议错误，然后恢复。
 3. 阅读 `PyLong_FromLongLong` 和 `PyArg_ParseTuple` 的官方文档，分别标记返回引用所有权和每个格式字符的目标 C 类型。
+4. 给模块增加一个需要临时 Python 对象的函数，画出每条失败路径的 `Py_DECREF` 清理表。
+5. 研究 `PyModule_GetState`，说明它比普通全局缓存更适合多解释器环境的原因。

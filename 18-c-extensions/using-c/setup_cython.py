@@ -9,6 +9,7 @@ setup(
     version="1.0.0",
     ext_modules=cythonize(
         [Extension("cython_example", ["cython_example.pyx"])],
+        annotate=True,
         compiler_directives={"language_level": "3"},
     ),
 )

@@ -5,6 +5,7 @@ from __future__ import annotations
 import ctypes
 import os
 import platform
+from array import array
 from pathlib import Path
 from typing import Iterable
 
@@ -71,6 +72,7 @@ def sum_squares(limit: int) -> int:
 
 
 def sum_doubles(values: Iterable[float]) -> float:
+    """Copy an iterable into a temporary C array, then sum it."""
     data = [float(value) for value in values]
     array_type = ctypes.c_double * len(data)
     c_values = array_type(*data)
@@ -81,7 +83,32 @@ def sum_doubles(values: Iterable[float]) -> float:
     return result.value
 
 
+def sum_doubles_buffer(values: object) -> float:
+    """Sum a writable, C-contiguous native-double buffer without copying it."""
+    view = memoryview(values)
+    if view.ndim != 1 or not view.c_contiguous:
+        raise ValueError("values must be a one-dimensional C-contiguous buffer")
+    if view.format != "d" or view.itemsize != ctypes.sizeof(ctypes.c_double):
+        raise TypeError("values must expose native C doubles (format 'd')")
+    if view.readonly:
+        raise TypeError("ctypes.from_buffer requires a writable buffer")
+
+    length = view.nbytes // view.itemsize
+    result = ctypes.c_double()
+    if length == 0:
+        pointer = None
+    else:
+        array_type = ctypes.c_double * length
+        pointer = array_type.from_buffer(view)
+    status = LIB.sum_doubles(pointer, length, ctypes.byref(result))
+    if status != 0:
+        raise RuntimeError(f"sum_doubles failed with status {status}")
+    return result.value
+
+
 def count_byte(data: bytes, needle: bytes) -> int:
+    if not isinstance(data, bytes) or not isinstance(needle, bytes):
+        raise TypeError("data and needle must be bytes")
     if len(needle) != 1:
         raise ValueError("needle must contain exactly one byte")
     return LIB.count_byte(data, len(data), needle)
@@ -91,4 +118,8 @@ if __name__ == "__main__":
     print("add_int32(3, 5) =", add_int32(3, 5))
     print("sum_squares(10) =", sum_squares(10))
     print("sum_doubles([1, 2, 3.5]) =", sum_doubles([1, 2, 3.5]))
+    print(
+        "sum_doubles_buffer(array('d', [1, 2, 3.5])) =",
+        sum_doubles_buffer(array("d", [1, 2, 3.5])),
+    )
     print("count_byte(b'banana', b'a') =", count_byte(b"banana", b"a"))
