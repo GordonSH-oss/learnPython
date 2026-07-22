@@ -17,7 +17,7 @@
 | 并发和异步 | 已补入口 | `11-concurrency` | 线程池、进程池、async HTTP、取消传播 |
 | Web 后端 | 已补入口 | `12-web-backend`、`08-frameworks` | 鉴权、数据库会话、后台任务、部署 |
 | 数据分析 | 已补入口 | `13-data-science` | 可视化、特征工程、scikit-learn 基线 |
-| 深度学习 | 已补入口 | `07-deep-learning` | 真实数据集训练、模型评估、保存加载 |
+| 深度学习 | 已形成完整路线 | `07-deep-learning` | 可继续增加 Transformer 与生产部署专题 |
 | AI 应用工程 | 已补入口 | `14-ai-applications` | embedding、Milvus RAG、评测、成本控制 |
 | 安全和可观测性 | 已补入口 | `15-security-observability` | 指标、trace id、健康检查、审计日志 |
 | 综合项目 | 已补入口 | `16-capstone-project` | 接入真实 FastAPI、数据库、Milvus 和 LLM |

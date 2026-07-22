@@ -104,20 +104,16 @@ learn-python/
 │   ├── test.txt                       # 测试文本
 │   └── test.yaml                      # 测试配置
 │
-├── 07-deep-learning/                  # PyTorch 深度学习
-│   ├── README.md                      # 深度学习学习指南
-│   ├── pytorch_basics.py              # PyTorch 基础
-│   ├── tensors.py                     # Tensor 张量
-│   ├── autograd.py                    # 自动微分
-│   ├── neural_networks.py             # 神经网络
-│   ├── training_loop.py               # 训练循环
-│   ├── datasets_dataloaders.py        # 数据加载
-│   ├── linear_regression.py           # 线性回归
-│   ├── image_classification.py        # 图像分类
-│   ├── cnn_mnist.py                   # CNN 形状演示
-│   ├── transfer_learning.py           # 迁移学习
-│   ├── linear_algebra_practice.py     # 线性代数练习
-│   └── LINEAR_ALGEBRA_IN_DL.md        # 深度学习线性代数
+├── 07-deep-learning/                  # 深度学习原理与 PyTorch
+│   ├── README.md                      # 学习路线入口
+│   ├── fundamentals/                  # 框架无关的数学与 NumPy 练习
+│   └── pytorch/                       # PyTorch 专属课程
+│       ├── notebooks/                 # 13 节交互式课程
+│       ├── common/                    # 训练、数据、模型和检查点公共模块
+│       ├── examples/                  # 可从终端运行的完整示例
+│       ├── tests/                     # 轻量单元与课程结构测试
+│       ├── data/                      # 下载的数据集（忽略提交）
+│       └── artifacts/                 # 检查点和导出模型（忽略提交）
 │
 ├── 08-frameworks/                     # 通过框架源码学习 Python
 │   ├── README.md                      # 框架源码学习入口

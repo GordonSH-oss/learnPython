@@ -87,10 +87,12 @@ requirements/
 ### 深度学习
 ```
 07-deep-learning/
-├── 数学: LINEAR_ALGEBRA_IN_DL.md, linear_algebra_practice.py
-├── PyTorch 基础: pytorch_basics.py, tensors.py, autograd.py
-├── 训练: neural_networks.py, training_loop.py, datasets_dataloaders.py
-└── 项目: linear_regression.py, image_classification.py, cnn_mnist.py, transfer_learning.py
+├── fundamentals/    # 框架无关的线性代数与 NumPy 练习
+└── pytorch/
+    ├── notebooks/   # 13 节交互式课程
+    ├── common/      # 数据、模型、训练、设备和检查点
+    ├── examples/    # 终端可运行的完整示例
+    └── tests/       # 课程与核心逻辑测试
 ```
 
 ### 框架源码
