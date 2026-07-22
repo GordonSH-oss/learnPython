@@ -21,6 +21,7 @@ static bool parse_int(const char *text, int *value) {
     char *end;
     errno = 0;
     long parsed = strtol(text, &end, 10);
+    /* 拒绝溢出、空输入、尾随字符和无效学号。 */
     if (errno != 0 || end == text || *end != '\0' || parsed < 1 || parsed > 2147483647L)
         return false;
     *value = (int)parsed;
@@ -31,6 +32,7 @@ static bool parse_score(const char *text, double *score) {
     char *end;
     errno = 0;
     double parsed = strtod(text, &end);
+    /* strtod 可以只解析前缀，因此还要用 *end 确认整个字符串都已解析。 */
     if (errno != 0 || end == text || *end != '\0' || parsed < 0 || parsed > 100)
         return false;
     *score = parsed;
@@ -42,6 +44,7 @@ static void print_student(const Student *student) {
 }
 
 int main(int argc, char **argv) {
+    /* argv[1] 是数据文件路径，argv[2] 用于选择操作。 */
     if (argc < 3) {
         usage(argv[0]);
         return 2;
@@ -50,6 +53,8 @@ int main(int argc, char **argv) {
     const char *command = argv[2];
     StudentRegistry registry;
     student_registry_init(&registry);
+
+    /* 每条命令都先从磁盘加载当前持久化状态。 */
     if (!student_store_load(path, &registry)) {
         fprintf(stderr, "failed to load %s\n", path);
         student_registry_destroy(&registry);
@@ -57,6 +62,7 @@ int main(int argc, char **argv) {
     }
 
     int result = 0;
+    /* 修改类命令先更新内存，成功后再把完整注册表写回磁盘。 */
     if (strcmp(command, "add") == 0 && argc == 6) {
         int id;
         double score;
@@ -69,6 +75,7 @@ int main(int argc, char **argv) {
             result = 1;
         }
     } else if (strcmp(command, "list") == 0 && argc == 3) {
+        /* 排序只改变本次运行中的显示顺序，list 命令不会保存排序结果。 */
         student_registry_sort_by_score(&registry, true);
         for (size_t index = 0; index < registry.size; ++index)
             print_student(&registry.items[index]);
@@ -100,7 +107,8 @@ int main(int argc, char **argv) {
         usage(argv[0]);
         result = 2;
     }
+
+    /* 所有命令分支最终走到同一处释放注册表内存。 */
     student_registry_destroy(&registry);
     return result;
 }
-
