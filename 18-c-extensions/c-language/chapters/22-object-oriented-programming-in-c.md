@@ -6,6 +6,7 @@
 
 - 理解“对象”在机器层面可以拆成状态、行为和生命周期
 - 使用结构体保存对象状态，使用接收对象指针的函数实现方法
+- 创建多个状态彼此隔离、行为实现共享的 C 对象
 - 使用头文件、不透明指针和命名约定实现封装
 - 使用结构体嵌入模拟继承，使用函数指针表实现动态多态
 - 识别手动模拟面向对象时的类型、内存和所有权风险
@@ -92,6 +93,108 @@ bool account_deposit(Account *self, int amount) {
 | 方法调用 | `account_deposit(&account, 100)` |
 
 `self` 不是 C 关键字，只是常用命名。也可以写成 `account`，但统一使用 `self` 能突出“这是当前对象”。
+
+## 多个实例如何隔离各自的状态
+
+C 完全可以创建多个独立对象。它没有 `new Account(...)` 这样的实例化语法，但只要为结构体分配一块新的内存，就得到了一个新的实例。
+
+先看两个位于栈上的对象：
+
+```c
+Account alice;
+Account bob;
+
+account_init(&alice, "Alice", 100);
+account_init(&bob, "Bob", 500);
+
+account_deposit(&alice, 50);
+
+printf("Alice: %d\n", alice.balance); // 150
+printf("Bob: %d\n", bob.balance);     // 500
+```
+
+`alice` 和 `bob` 的类型相同，但它们占用不同的内存：
+
+```text
+共享的函数代码
+account_deposit(self, amount)
+             |
+             +---- self = &alice ----> [name: Alice | balance: 150]
+             |
+             +---- self = &bob ------> [name: Bob   | balance: 500]
+```
+
+调用 `account_deposit(&alice, 50)` 时，`self` 指向 `alice`，函数只修改 `alice.balance`。`bob` 位于另一块内存，因此不受影响。
+
+这与 Python、Java 或 C++ 的核心机制相同：
+
+- 类型定义描述每个对象具有什么字段。
+- 每个实例拥有自己的一份字段数据。
+- 方法代码通常只保存一份，由所有实例共享。
+- 调用方法时，通过 `self` 或 `this` 确定当前操作哪个实例。
+
+区别只是面向对象语言替你隐藏了一些步骤：
+
+| 操作 | Python 风格 | C 风格 |
+| --- | --- | --- |
+| 创建独立对象 | `alice = Account(...)` | `Account alice; account_init(&alice, ...)` |
+| 调用实例方法 | `alice.deposit(50)` | `account_deposit(&alice, 50)` |
+| 当前实例 | 隐式传入 `self` | 显式传入 `&alice` |
+| 自动回收 | 通常由运行时管理 | 按存储方式手动管理 |
+
+### “实例化”在 C 中具体是什么
+
+如果对象大小在编译时已知，而且生命周期只限于当前作用域，可以直接声明栈对象：
+
+```c
+Account alice;
+account_init(&alice, "Alice", 100);
+```
+
+这里 `Account alice` 已经为一个独立实例预留内存，`account_init` 负责写入初始状态。离开作用域后，这块栈内存自动失效，不需要 `free(&alice)`。
+
+如果对象需要跨越当前作用域，或其生命周期由程序动态决定，可以在堆上创建：
+
+```c
+Account *alice = malloc(sizeof *alice);
+if (alice == NULL) {
+    // 处理分配失败
+}
+
+account_init(alice, "Alice", 100);
+account_deposit(alice, 50);
+
+free(alice);
+```
+
+这里 `malloc` 只负责分配原始内存，并不会自动初始化字段。完整的堆对象创建函数通常把分配和初始化包装在一起：
+
+```c
+Account *account_create(const char *name, int balance) {
+    Account *self = malloc(sizeof *self);
+    if (self == NULL) {
+        return NULL;
+    }
+
+    account_init(self, name, balance);
+    return self;
+}
+```
+
+因此，“C 没有实例”是不准确的。更准确的说法是：C 没有内置的类、构造函数和 `new` 语法；程序员使用结构体定义对象布局，使用栈声明或 `malloc` 创建独立存储，再使用初始化函数建立有效状态。
+
+### 什么时候状态会意外共享
+
+不同结构体实例的普通字段默认互相隔离，但下面这些数据可能被多个对象共享：
+
+- 全局变量和文件级 `static` 变量
+- 函数内部的 `static` 局部变量
+- 多个对象共同保存的同一个指针所指向的数据
+- 共享的虚函数表和只读配置
+
+例如，两个对象都让 `name` 指向同一块可写字符数组时，修改该数组会同时影响它们观察到的名称。判断状态是否隔离，不能只看结构体变量本身，还要继续检查结构体中的指针指向谁、由谁拥有。
+
+> 核心判断：对象自己的字段存在哪块内存？字段中的指针是否又指向了共享内存？
 
 ## 第二步：用模块边界实现封装
 

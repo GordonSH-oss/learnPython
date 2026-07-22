@@ -5,6 +5,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+typedef struct {
+    const char *name;
+    int balance;
+} Account;
+
+static void account_init(Account *self, const char *name, int balance) {
+    self->name = name;
+    self->balance = balance;
+}
+
+static void account_deposit(Account *self, int amount) {
+    self->balance += amount;
+}
+
 typedef struct Animal Animal;
 
 typedef struct {
@@ -106,6 +120,16 @@ static Animal *cat_as_animal(Cat *self) {
 }
 
 int main(void) {
+    Account alice;
+    Account bob;
+    account_init(&alice, "Alice", 100);
+    account_init(&bob, "Bob", 500);
+    account_deposit(&alice, 50);
+
+    puts("independent object state:");
+    printf("%s: %d\n", alice.name, alice.balance);
+    printf("%s: %d\n", bob.name, bob.balance);
+
     Dog *dog = dog_create("Bolt", 3);
     Cat *cat = cat_create("Mochi", 7);
     if (dog == NULL || cat == NULL) {
@@ -121,7 +145,7 @@ int main(void) {
     };
     const size_t count = sizeof animals / sizeof animals[0];
 
-    puts("same interface, different behavior:");
+    puts("\nsame interface, different behavior:");
     for (size_t i = 0; i < count; ++i) {
         animal_speak(animals[i]);
     }
