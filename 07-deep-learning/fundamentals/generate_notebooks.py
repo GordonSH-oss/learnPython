@@ -137,8 +137,8 @@ import numpy as np
 from from_scratch import CrossEntropyLoss, MSELoss, ReLU, Sigmoid, softmax
 
 values = np.array([[-1000.0, 0.0, 1000.0], [-2.0, 0.0, 2.0]])
-print("ReLU:\n", ReLU().forward(values))
-print("Sigmoid:\n", Sigmoid().forward(values))
+print("ReLU:\\n", ReLU().forward(values))
+print("Sigmoid:\\n", Sigmoid().forward(values))
 probabilities = softmax(values)
 print("Softmax row sums:", probabilities.sum(axis=1))
 """), code("""
@@ -146,7 +146,7 @@ logits = np.array([[2.0, 0.5, -1.0], [-1.0, 0.0, 3.0]])
 targets = np.array([0, 2])
 criterion = CrossEntropyLoss()
 print("cross entropy:", criterion.forward(logits, targets))
-print("gradient:\n", criterion.backward())
+print("gradient:\\n", criterion.backward())
 
 mse = MSELoss()
 print("mse:", mse.forward(np.array([1.5, 2.0]), np.array([1.0, 3.0])))
@@ -350,8 +350,7 @@ plt.tight_layout(); plt.show()
 
 
 def build_notebook(title: str, goal: str, concept: str, cells: list[dict[str, object]], checkpoint: str, experiment: str, mistakes: str) -> dict[str, object]:
-    return {
-        "cells": [
+    notebook_cells = [
             markdown(f"# {title}\n\n## 学习目标\n\n{goal}"),
             markdown(f"## 概念模型\n\n{concept}"),
             markdown("## 逐步实现\n\n按顺序运行下面的代码，并在每一步检查 shape、数值范围和中间结果。"),
@@ -359,7 +358,11 @@ def build_notebook(title: str, goal: str, concept: str, cells: list[dict[str, ob
             markdown(f"## 检查点\n\n{checkpoint}"),
             markdown(f"## 试一试\n\n{experiment}"),
             markdown(f"## 常见错误\n\n{mistakes}"),
-        ],
+        ]
+    for index, cell in enumerate(notebook_cells):
+        cell["id"] = f"lesson-cell-{index:02d}"
+    return {
+        "cells": notebook_cells,
         "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"}, "language_info": {"name": "python", "version": "3"}},
         "nbformat": 4,
         "nbformat_minor": 5,

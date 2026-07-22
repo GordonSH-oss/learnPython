@@ -21,6 +21,6 @@ def test_course_contains_ten_valid_notebooks_with_teaching_sections() -> None:
 def test_fundamentals_do_not_use_deep_learning_frameworks() -> None:
     forbidden = ("import torch", "import tensorflow", "import jax", "autograd")
     for path in ROOT.rglob("*"):
-        if path.suffix in {".py", ".md", ".ipynb"}:
+        if "tests" not in path.parts and path.suffix in {".py", ".md", ".ipynb"}:
             text = path.read_text().lower()
             assert not any(token in text for token in forbidden), path

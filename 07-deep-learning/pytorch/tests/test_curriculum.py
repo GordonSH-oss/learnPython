@@ -14,8 +14,11 @@ def test_all_notebooks_are_valid_and_have_teaching_sections() -> None:
     for path in notebooks:
         notebook = json.loads(path.read_text())
         text = "".join("".join(cell["source"]) for cell in notebook["cells"])
+        code_cells = [cell for cell in notebook["cells"] if cell["cell_type"] == "code"]
         assert notebook["nbformat"] == 4
         assert all(section in text for section in required)
+        assert len(code_cells) >= 4
+        assert sum(len(cell["source"]) for cell in code_cells) >= 12
 
 
 def test_fundamentals_do_not_import_torch() -> None:

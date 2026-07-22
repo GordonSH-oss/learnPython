@@ -51,6 +51,22 @@ def test_linear_and_cross_entropy_gradients_match_finite_differences() -> None:
     assert error < 1e-6
 
 
+def test_complete_mlp_gradient_matches_finite_differences() -> None:
+    inputs = np.array([[0.3, -0.2], [0.8, 0.4]])
+    targets = np.array([0, 1])
+    model = MLP(2, [3], 2, seed=11)
+    loss_function = CrossEntropyLoss()
+
+    def loss_value() -> float:
+        return loss_function.forward(model.forward(inputs), targets)
+
+    loss_value()
+    model.backward(loss_function.backward())
+    parameter, analytic_gradient = model.parameters()[0]
+    error = gradient_check(loss_value, parameter, analytic_gradient.copy())
+    assert error < 1e-6
+
+
 def test_optimizers_update_and_clear_gradients() -> None:
     layer = Linear(2, 2, seed=1)
     layer.grad_weight.fill(1.0)

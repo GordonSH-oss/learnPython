@@ -1,6 +1,6 @@
 # PyTorch 深度学习课程
 
-本课程面向掌握 Python 基础的学习者。Notebook 用来建立概念和调试直觉，`common/` 保存可复用实现，`examples/` 提供可从终端重复运行的任务。
+本课程面向掌握 Python 基础的学习者。每个 Notebook 包含概念模型、多个实验、底层机制、检查点、练习和专项调试建议；`common/` 保存可复用实现，`examples/` 提供可从终端重复运行的任务。
 
 ## 安装与启动
 
@@ -33,10 +33,11 @@ jupyter lab 07-deep-learning/pytorch/notebooks
 
 ## 常用命令
 
-所有训练入口接受 `--dataset`、`--data-dir`、`--epochs`、`--batch-size`、`--device`、`--output-dir` 和 `--quick`。某些示例不使用其中全部参数，但保持统一接口以便切换实验。
+所有训练入口接受 `--dataset`、`--data-dir`、`--epochs`、`--batch-size`、`--device`、`--output-dir`、`--quick`、`--resume`、`--seed` 和 `--patience`。某些演示不使用其中全部参数，但保持统一接口以便切换实验。
 
 ```bash
 python 07-deep-learning/pytorch/examples/linear_regression.py --quick --epochs 20
+python 07-deep-learning/pytorch/examples/linear_regression.py --epochs 40 --resume 07-deep-learning/pytorch/artifacts/linear_regression.pt
 python 07-deep-learning/pytorch/examples/train_image_classifier.py --dataset mnist --quick --epochs 1
 python 07-deep-learning/pytorch/examples/train_image_classifier.py --dataset cifar10 --quick --epochs 1
 python 07-deep-learning/pytorch/examples/rnn_sequences.py --quick --epochs 3
@@ -48,6 +49,8 @@ pytest 07-deep-learning/pytorch/tests
 ```
 
 `--quick` 只缩小真实数据子集或合成任务规模。图像训练不会在下载失败时自动替换成随机数据。
+
+图像分类和迁移学习始终根据验证指标保存最佳检查点，并在最终测试前重新加载它。恢复训练会同时恢复模型、优化器以及可用的调度器状态。
 
 ## 数据边界
 

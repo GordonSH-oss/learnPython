@@ -16,6 +16,7 @@ from common.checkpoint import load_checkpoint, save_checkpoint
 from common.engine import evaluate, train_one_epoch
 from common.models import ImageClassifier, ScaledDotProductAttention, SequenceClassifier
 from common.runtime import choose_device, seed_everything
+from common.training import EarlyStopping
 
 
 def test_choose_device_cpu_and_seed_are_deterministic() -> None:
@@ -43,14 +44,22 @@ def test_training_and_evaluation_aggregate_metrics() -> None:
 def test_checkpoint_round_trip(tmp_path: Path) -> None:
     model = nn.Linear(2, 1)
     optimizer = torch.optim.Adam(model.parameters())
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1)
     expected = {name: value.detach().clone() for name, value in model.state_dict().items()}
-    path = save_checkpoint(tmp_path / "model.pt", model, optimizer, epoch=3, metrics={"loss": 0.5})
+    optimizer.step()
+    scheduler.step()
+    expected_lr = scheduler.get_last_lr()
+    path = save_checkpoint(
+        tmp_path / "model.pt", model, optimizer, epoch=3, metrics={"loss": 0.5}, scheduler=scheduler
+    )
     with torch.no_grad():
         model.weight.add_(10)
-    metadata = load_checkpoint(path, model, optimizer)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1)
+    metadata = load_checkpoint(path, model, optimizer, scheduler=scheduler)
     assert metadata == {"epoch": 3, "metrics": {"loss": 0.5}}
     for name, value in model.state_dict().items():
         torch.testing.assert_close(value, expected[name])
+    assert scheduler.get_last_lr() == expected_lr
 
 
 def test_model_output_shapes_and_attention_mask() -> None:
@@ -62,3 +71,11 @@ def test_model_output_shapes_and_attention_mask() -> None:
     assert output.shape == query.shape
     torch.testing.assert_close(weights.sum(dim=-1), torch.ones(2, 4))
     assert weights.triu(diagonal=1).sum().item() == 0
+
+
+def test_early_stopping_tracks_improvement_and_patience() -> None:
+    stopping = EarlyStopping(patience=2, mode="max")
+    assert stopping.update(0.6) == (True, False)
+    assert stopping.update(0.5) == (False, False)
+    assert stopping.update(0.4) == (False, True)
+    assert stopping.update(0.7) == (True, False)

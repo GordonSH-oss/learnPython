@@ -16,6 +16,9 @@ class TrainConfig:
     device: str
     output_dir: Path
     quick: bool
+    resume: Path | None
+    seed: int
+    patience: int
 
 
 def parse_train_config(default_dataset: str, description: str) -> TrainConfig:
@@ -27,5 +30,8 @@ def parse_train_config(default_dataset: str, description: str) -> TrainConfig:
     parser.add_argument("--device", default="auto", choices=("auto", "cpu", "cuda", "mps"))
     parser.add_argument("--output-dir", type=Path, default=Path(__file__).parents[1] / "artifacts")
     parser.add_argument("--quick", action="store_true")
+    parser.add_argument("--resume", type=Path)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--patience", type=int, default=3)
     args = parser.parse_args()
     return TrainConfig(**vars(args))
