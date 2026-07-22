@@ -535,6 +535,61 @@ app/main.c ------> main.o                              test_task_list.c
 
 构建系统管理的是一张依赖图，而不只是顺序执行的一组 shell 命令。只有目标依赖发生变化时，对应规则才需要重新执行。
 
+## 根 Makefile 如何调度多个项目
+
+包含多个独立练习项目时，可以用一个根 Makefile 统一调用各项目自己的 Makefile：
+
+```make
+PROJECTS := student-manager expense-tracker text-analyzer
+
+all:
+	@for project in $(PROJECTS); do \
+		$(MAKE) -C $$project all || exit 1; \
+	done
+```
+
+这里不是 Make 自动扫描磁盘并猜测哪些目录是项目。`PROJECTS` 明确列出了项目及其顺序，shell 的 `for` 循环按顺序逐个调度：
+
+```text
+根 Makefile
+    -> student-manager/Makefile 的 all
+    -> expense-tracker/Makefile 的 all
+    -> text-analyzer/Makefile 的 all
+```
+
+每一部分都有明确职责：
+
+- `$(MAKE)` 调用当前 Make 实现，并把并行参数等构建上下文传给子 Make，比直接写 `make` 更可靠。
+- `-C $$project` 让子 Make 先进入项目目录，再读取该目录中的 `Makefile`。
+- Make 先把 `$$` 转义为一个 `$`，shell 最终看到 `$project` 并读取循环变量。
+- 行首的 `@` 只隐藏命令本身，命令产生的输出仍然可见。
+- `|| exit 1` 表示任一子项目失败后立即停止，避免根目标把部分成功误报为全部成功。
+
+根 Makefile 只负责“有哪些项目、对每个项目执行什么目标”；子 Makefile 才负责“这个项目有哪些源文件、怎样编译和链接”。如果新增项目目录却没有加入 `PROJECTS`，根 Makefile 不会自动构建它。也可以用通配符发现目录，但显式列表更容易控制顺序、排除非项目目录并审查变更。
+
+需要区分两种“顺序”：上面的 shell 循环确实顺序调用子项目，但每个子 Make 内部仍按依赖图决定规则。Makefile 的书写顺序不是普遍的执行顺序；前置依赖、时间戳和 `-j` 并行选项共同决定真正执行哪些命令。
+
+## 一条编译命令与独立目标文件
+
+小项目可以在一条命令中同时列出全部源文件：
+
+```make
+build/student-manager: app/main.c src/student.c src/student_registry.c
+	$(CC) $(CFLAGS) -Iinclude $^ -o $@
+```
+
+编译器驱动会分别处理各个 `.c` 翻译单元，再调用链接器生成一个可执行文件。从工具链角度看仍然经历了编译和链接，但从这个 Makefile 的依赖图看只有一个最终目标：任何一个源文件变化，整条命令都会重新运行。
+
+项目变大后，通常把每个 `.c` 独立编译成 `.o`：
+
+```text
+main.c -> main.o --------+
+student.c -> student.o --+-> student-manager
+registry.c -> registry.o +
+```
+
+这样修改 `student.c` 时只需重建 `student.o`，然后重新链接；互不依赖的目标文件还可以通过 `make -j` 并行编译。代价是 Makefile 规则和头文件依赖管理更复杂，因此小型学习项目使用单条命令并没有错，只是它的增量构建粒度较粗。
+
 ## 从案例扩展到大型工程
 
 更大的项目仍然使用相同模型，只是会包含更多库和入口：
@@ -554,6 +609,45 @@ project/
 ```
 
 CLI 和服务器可以链接同一批领域库；单元测试和集成测试可以使用不同入口，但不复制产品实现。
+
+### 公共、内部与文件私有接口
+
+大型项目的 `include/` 确实可能包含很多文件，但不应该把所有函数都暴露进去。可以按可见范围分成三层：
+
+| 范围 | 常见位置或写法 | 谁可以使用 |
+| --- | --- | --- |
+| 公共接口 | `include/project/module.h` | 应用、测试、其他库和外部调用者 |
+| 项目内部接口 | `src/module/module_internal.h` | 同一模块的多个实现文件 |
+| 文件私有实现 | `.c` 中的 `static` 函数和对象 | 当前翻译单元 |
+
+只有需要跨翻译单元调用的声明才需要放进头文件。某个 `.c` 文件如果只提供私有辅助逻辑，可以没有同名公共头文件；一个稳定的公共头文件也可以由多个 `.c` 文件共同实现。不要机械地要求每个 `.c` 必须对应一个 `.h`。
+
+头文件数量多并不可怕，失控的依赖才可怕。公共头文件应按模块组织并保持小而自包含，避免一个“万能头文件”包含全项目接口，因为它会扩大耦合和重新编译范围。
+
+### 用不透明类型隐藏结构布局
+
+如果调用者只需要持有对象指针，而不应直接访问字段，可以在公共头文件中只做前向声明：
+
+```c
+typedef struct StudentRegistry StudentRegistry;
+
+StudentRegistry *student_registry_create(void);
+void student_registry_destroy(StudentRegistry *registry);
+```
+
+完整定义留在 `.c` 或内部头文件中：
+
+```c
+struct StudentRegistry {
+    Student *items;
+    size_t count;
+    size_t capacity;
+};
+```
+
+公共接口改变内部字段时，调用者不需要了解实现细节。不完整类型可以用于声明指针，但不能按值定义对象、访问成员或执行 `sizeof(StudentRegistry)`；这些操作需要编译器看到完整结构定义。
+
+这种设计称为不透明类型或 opaque struct。它能加强模块边界，但对象通常需要通过创建和销毁函数管理，还要明确内存所有权和失败处理。
 
 大型工程设计时应关注：
 

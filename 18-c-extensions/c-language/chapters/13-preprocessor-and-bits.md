@@ -77,6 +77,45 @@ clang -std=c17 -E -v examples/13_preprocessor_bits.c -o /dev/null
 
 `#include` 常被口语化描述为“复制文本”，但更准确的模型是：实现定位头文件，处理其中的预处理 token 和指令，并把结果纳入当前翻译单元。头文件自身也可以继续 include 其他头文件。
 
+### 指令名与工程命名不是一回事
+
+`#include` 中的 `include` 是 C 标准规定的预处理指令名，不能改成自定义名称：
+
+```c
+#contain "student.h" /* 错误：未知预处理指令 */
+```
+
+宏只能参与指令允许展开的位置，不能创造或重命名预处理指令。因此下面的定义也不能让 `#contain` 获得 `#include` 的含义：
+
+```c
+#define contain include
+#contain "student.h" /* 仍然错误 */
+```
+
+但 `#include` 的操作数可以由宏提供：
+
+```c
+#define STUDENT_HEADER "student.h"
+#include STUDENT_HEADER
+```
+
+需要把四个容易混淆的概念分开：
+
+| 写法 | 性质 | 能否自定义 |
+| --- | --- | --- |
+| `#include` | C 预处理器语法 | 不能改名 |
+| `include/` | 项目的目录命名约定 | 可以改名 |
+| `.h` | 头文件的生态和工具约定 | 技术上可以改用其他后缀 |
+| `-Iinclude` | 告诉编译器增加搜索目录 | 应随实际目录调整 |
+
+例如，项目可以把目录命名为 `headers/`，然后使用：
+
+```bash
+clang -Iheaders app/main.c src/student.c -o student-manager
+```
+
+甚至可以写 `#include "student.interface"`，只要文件存在且搜索路径正确。但 `.h` 和 `include/` 已被编译器、编辑器、构建系统及开发者广泛识别，偏离约定会增加理解和工具配置成本。工程通常可以改名，但没有充分理由时不值得改。
+
 ## 宏展开的输入与结果
 
 对象式宏替换宏名：

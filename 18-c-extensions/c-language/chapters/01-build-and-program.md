@@ -62,6 +62,50 @@ clang -std=c17 -Wall -Wextra -Wpedantic examples/01_hello.c -o build/01_hello
 
 警告不一定阻止生成程序，但经常暴露类型、格式参数或控制流错误。学习阶段应保持零警告，而不是通过删除警告选项隐藏问题。
 
+## 用 Make 管理构建生命周期
+
+真实项目通常不会要求开发者反复手写完整的 `clang` 命令，而是把编译规则记录在 `Makefile` 中。运行 `make 目标名`，就是要求 Make 构建或执行这个目标。
+
+常见目标的职责如下：
+
+| 命令 | 主要作用 | 是否通常生成或删除文件 |
+| --- | --- | --- |
+| `make all` 或 `make` | 构建项目的默认程序 | 生成目标文件、库或可执行文件 |
+| `make test` | 先构建测试程序，再运行测试 | 可能生成测试可执行文件 |
+| `make sanitize` | 使用 AddressSanitizer、UndefinedBehaviorSanitizer 等检测器重新构建并运行测试 | 生成带检测代码的程序 |
+| `make clean` | 删除构建产物，让下次构建从干净状态开始 | 删除 `build/`、`.o` 等生成文件 |
+
+`clean` 不是编译的反向操作，也不会删除源代码。它只删除可以根据源代码重新生成的文件。
+
+如果连续两次执行 `make all`，第二次可能显示：
+
+```text
+make: Nothing to be done for `all'.
+```
+
+这表示 `all` 所依赖的目标都存在，而且没有依赖比目标更新，因此不需要重复编译。这是增量构建正常工作的结果，不是错误。
+
+`make test` 没有打印失败信息并返回 shell 提示符，通常表示测试成功。可以继续检查退出状态：
+
+```bash
+make test
+echo $?
+```
+
+退出状态为 `0` 表示 Make 的整个执行链成功；任意编译命令、测试程序或子 Make 返回非零值，目标通常都会失败。
+
+切换普通构建和 sanitizer 构建时，编译选项发生了变化。简单 Makefile 未必能根据选项变化自动判断旧目标文件已经过期，因此常用的完整检查流程是：
+
+```bash
+make clean
+make test
+make sanitize
+make clean
+make all
+```
+
+最后两步用于移除带 sanitizer 插桩的构建产物，并恢复普通版本。更大型的工程通常为不同配置使用不同构建目录，例如 `build/debug/`、`build/release/` 和 `build/sanitize/`，避免配置互相污染。
+
 ## 常见错误
 
 - `expected ';'`：上一条语句可能缺少分号。
