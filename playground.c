@@ -1,17 +1,17 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
-int main(void)
-{
-    FILE *file = fopen("data.txt", "r");
-    if (file == NULL) {
-        fprintf(stderr, "Failed to open file\n");
-        return 1;
-    }
-    char buffer[256];
-    while (fgets(buffer, sizeof(buffer), file) != NULL) {
-        printf("%s", buffer);
-    }
-    fclose(file);
+typedef struct {
+    int a;
+    int b;
+} Entity;
+int main(void) {
+    Entity *arr = calloc(4, sizeof(Entity));
+    arr[0].a = 1;
+    arr[0].b = 2;
+    printf("%d\n", arr[0].a);
+    printf("%d\n", arr[0].b);
+    free(arr);
     return 0;
 }
