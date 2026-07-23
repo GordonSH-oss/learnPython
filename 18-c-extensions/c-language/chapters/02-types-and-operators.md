@@ -7,6 +7,7 @@
 - 区分基础类型、派生类型和用户定义类型。
 - 根据数据含义选择整数、浮点数、布尔值和字符类型。
 - 使用 `sizeof`、`<limits.h>` 和 `<stdint.h>`，避免假定类型的具体大小。
+- 使用 `const` 表达只读意图，并区分“指向只读对象的指针”和“不能改向的指针”。
 - 预测整数除法、整数提升、常用算术转换和显式转换的结果。
 - 识别有符号溢出、无符号回绕、符号混用和格式说明符不匹配等风险。
 - 正确使用常见算术、比较、逻辑、赋值、条件和位运算符。
@@ -154,13 +155,112 @@ int count;
 
 尽量在获得有意义的初值时声明变量，并让作用域保持紧凑。
 
-`const` 表示不能通过这个名称修改对象：
+### `const` 表达只读访问
+
+`const` 是类型限定符。用 `const` 限定对象后，程序不能通过这个对象名称给它赋新值：
 
 ```c
 const double tax_rate = 0.13;
+// tax_rate = 0.15;  // 错误：不能修改 const 对象
 ```
 
-`const` 有助于表达意图并阻止误修改，但它不会自动把变量变成编译期常量，也不一定意味着数据位于只读存储区。它与指针组合时的含义将在第 06 章解释。
+`const` 同时向读者和编译器表达“这里只应读取”。它可以阻止意外赋值，但不负责以下事情：
+
+- 它不会自动把变量变成 C 的整数常量表达式。例如，在标准 C 中，块作用域的 `const int length = 10` 不能用于所有要求编译期整数常量的场合。
+- 它不保证对象一定存放在物理只读内存中。
+- 它不表示对象在整个程序中绝对不会变化；同一对象可能还存在其他具有写权限的访问方式。
+
+初始化 `const` 对象尤其重要，因为初始化完成后不能再通过该名称赋值：
+
+```c
+const int retry_limit = 3;  // 声明时提供有效值
+```
+
+不要通过去掉 `const` 的强制转换尝试修改真正定义为 `const` 的对象，这样做会产生未定义行为：
+
+```c
+const int limit = 3;
+int *limit_ptr = (int *)&limit;
+// *limit_ptr = 5;  // 未定义行为
+```
+
+### `const` 与指针
+
+`const` 和指针组合时，必须分清被限制的是“指针所指的对象”还是“指针本身”：
+
+| 声明 | 指针能否改指向 | 能否通过指针修改所指对象 |
+| --- | --- | --- |
+| `const int *p` | 可以 | 不可以 |
+| `int *const p = &value` | 不可以 | 可以 |
+| `const int *const p = &value` | 不可以 | 不可以 |
+
+可以从变量名开始理解声明：
+
+```c
+int first = 10;
+int second = 20;
+
+const int *current = &first; // current 是指针，指向 const int
+current = &second;           // 可以改变指针保存的地址
+// *current = 30;            // 错误：不能通过 current 修改整数
+
+int *const fixed = &first;   // fixed 是 const 指针，指向 int
+*fixed = 30;                 // 可以修改 first
+// fixed = &second;          // 错误：fixed 不能改指向
+```
+
+`const int *p` 限制的是“通过 `p` 进行的访问”，不一定表示底层对象本身不可修改：
+
+```c
+int score = 90;
+const int *view = &score;
+
+score = 95;  // 可以：score 本身不是 const
+// *view = 95; // 错误：view 只提供只读访问
+```
+
+字符串字面量不允许修改，因此保存它的地址时通常使用 `const char *`：
+
+```c
+const char *name = "Alice";
+name = "Bob";  // 可以让 name 指向另一个字符串
+// name[0] = 'T'; // 错误：不能通过 name 修改字符
+```
+
+字符串和字符串字面量将在第 05 章展开，指针声明及其安全访问规则将在第 06 章展开。
+
+### 用 `const` 说明函数参数的方向
+
+函数不会修改指针所指的数据时，应把参数声明为指向 `const` 的指针。这既说明接口意图，也能让编译器阻止函数体中的误写：
+
+```c
+#include <stddef.h>
+#include <string.h>
+
+typedef struct {
+    const char *key;
+    int value;
+} Entry;
+
+int lookup(const Entry entries[], size_t count,
+           const char *key, int *result) {
+    for (size_t i = 0; i < count; ++i) {
+        if (strcmp(entries[i].key, key) == 0) {
+            *result = entries[i].value;
+            return 1;
+        }
+    }
+    return 0;
+}
+```
+
+这个函数的参数可以按输入和输出理解：
+
+- `const Entry entries[]`：输入数组，函数只查询元素。参数位置中的这种写法等价于 `const Entry *entries`。
+- `const char *key`：输入字符串，函数只读取字符。
+- `int *result`：输出参数，函数找到键后需要写入结果，因此不能把所指的 `int` 限定为 `const`。
+
+这里的 `const` 只限制 `lookup` 通过这些参数执行的操作，不负责保证指针有效，也不管理对象生命周期。函数仍然需要遵守数组边界、空指针和对象生命周期等规则。
 
 ## `sizeof` 与对象大小
 
