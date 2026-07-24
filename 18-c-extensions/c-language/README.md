@@ -68,6 +68,7 @@ clang -std=c17 -Wall -Wextra -Wpedantic examples/01_hello.c -o build/01_hello
 | 系统 | [20 Unix/POSIX API 实战](chapters/20-unix-posix-api-practice.md) | 如何在 Apple Silicon Mac 上查询和操作 Unix 系统资源？ | `20_unix_api.c` |
 | 工程 | [21 第三方库与 libcurl HTTP 客户端](chapters/21-external-libraries-http.md) | 如何引入第三方 C 库并处理 HTTP？ | `21_http_client.c` |
 | 进阶 | [22 用 C 模拟面向对象](chapters/22-object-oriented-programming-in-c.md) | 数据和逻辑分离时，如何实现封装、继承与多态？ | `22_oop_in_c.c` |
+| 参考 | [23 标准库速查：ISO C 与 POSIX](chapters/23-standard-library-reference.md) | 哪些函数是 C 标准的、哪些是 POSIX 的？ | — |
 
 建议每章按这个顺序学习：读章节、手敲示例、先预测输出、编译运行、完成练习、查看答案、修改输入再次验证。
 
