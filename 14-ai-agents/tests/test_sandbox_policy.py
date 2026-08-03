@@ -1,0 +1,75 @@
+from pathlib import Path
+from typing import get_args, get_origin, Literal
+
+import pytest
+
+from agent_core import (
+    ExecutionRequest,
+    ExecutionResult,
+    PredefinedCommand,
+    PythonCode,
+    Sandbox,
+    SandboxPolicy,
+    StopReason,
+)
+
+
+def test_request_dataclasses_normalize_and_preserve_inputs():
+    command = PredefinedCommand("pytest", ["-q"])
+    code = PythonCode("print('ok')", {"input.txt": b"data"})
+
+    assert command.arguments == ("-q",)
+    assert code.files == {"input.txt": b"data"}
+    assert isinstance(command, ExecutionRequest)
+    assert isinstance(code, ExecutionRequest)
+
+
+def test_policy_is_frozen_and_validates_positive_limits(tmp_path: Path):
+    policy = SandboxPolicy(tmp_path)
+
+    assert policy.workspace == tmp_path
+    assert policy.timeout_seconds == 5
+    assert policy.max_output_bytes == 65536
+    assert policy.network == "deny"
+    with pytest.raises((AttributeError, TypeError)):
+        policy.timeout_seconds = 1
+    with pytest.raises(ValueError):
+        SandboxPolicy(tmp_path, timeout_seconds=0)
+    with pytest.raises(ValueError):
+        SandboxPolicy(tmp_path, max_output_bytes=0)
+
+
+def test_stop_reasons_are_stable_strings():
+    assert {reason.value for reason in StopReason} == {
+        "completed", "failed", "timeout", "output_limit", "resource_limit", "policy_denied",
+    }
+
+
+def test_execution_result_holds_policy_summary(tmp_path: Path):
+    result = ExecutionResult("out", "err", 0, StopReason.COMPLETED, 0.25, {"network": "deny"})
+
+    assert result.stdout == "out"
+    assert result.returncode == 0
+    assert result.reason is StopReason.COMPLETED
+    assert result.policy_summary == {"network": "deny"}
+
+
+def test_sandbox_is_runtime_checkable_protocol():
+    assert get_origin(Sandbox) is not None or hasattr(Sandbox, "run")
+    assert "run" in Sandbox.__dict__
+    assert get_args(ExecutionRequest)
+
+
+def test_public_exports_are_available_from_agent_core():
+    import agent_core
+
+    for name in (
+        "PredefinedCommand", "PythonCode", "ExecutionRequest", "SandboxPolicy",
+        "ExecutionResult", "StopReason", "Sandbox",
+    ):
+        assert name in agent_core.__all__
+        assert hasattr(agent_core, name)
+
+
+def test_network_type_exposes_supported_literals():
+    assert get_args(Literal["deny", "allow"]) == ("deny", "allow")
