@@ -21,6 +21,14 @@ class PredefinedCommand:
     arguments: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
+        if not isinstance(self.name, str):
+            raise TypeError("name must be a string")
+        if not self.name:
+            raise ValueError("name must not be empty")
+        if not isinstance(self.arguments, (tuple, list)):
+            raise TypeError("arguments must be a sequence of strings")
+        if any(not isinstance(argument, str) for argument in self.arguments):
+            raise TypeError("arguments must contain only strings")
         object.__setattr__(self, "arguments", tuple(self.arguments))
 
 
@@ -28,6 +36,19 @@ class PredefinedCommand:
 class PythonCode:
     source: str
     files: Mapping[str, bytes] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.source, str):
+            raise TypeError("source must be a string")
+        if not isinstance(self.files, Mapping):
+            raise TypeError("files must be a mapping")
+        for path, content in self.files.items():
+            if not isinstance(path, str):
+                raise TypeError("file paths must be strings")
+            if not path or Path(path).is_absolute() or ".." in Path(path).parts:
+                raise ValueError("file paths must be relative and stay within the workspace")
+            if not isinstance(content, bytes):
+                raise TypeError("file contents must be bytes")
 
 
 ExecutionRequest: TypeAlias = PredefinedCommand | PythonCode

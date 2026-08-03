@@ -24,6 +24,28 @@ def test_request_dataclasses_normalize_and_preserve_inputs():
     assert isinstance(code, ExecutionRequest)
 
 
+def test_request_dataclasses_reject_invalid_command_name_and_arguments():
+    with pytest.raises(ValueError):
+        PredefinedCommand("")
+    with pytest.raises(TypeError):
+        PredefinedCommand("pytest", ["-q", 1])
+    with pytest.raises(TypeError):
+        PredefinedCommand(1)
+
+
+def test_python_code_rejects_invalid_source_and_files():
+    with pytest.raises(TypeError):
+        PythonCode(1)
+    with pytest.raises(ValueError):
+        PythonCode("print('ok')", {"": b"data"})
+    with pytest.raises(ValueError):
+        PythonCode("print('ok')", {"../secret": b"data"})
+    with pytest.raises(ValueError):
+        PythonCode("print('ok')", {"/tmp/file": b"data"})
+    with pytest.raises(TypeError):
+        PythonCode("print('ok')", {"input.txt": "data"})
+    with pytest.raises(TypeError):
+        PythonCode("print('ok')", {1: b"data"})
 def test_policy_is_frozen_and_validates_positive_limits(tmp_path: Path):
     policy = SandboxPolicy(tmp_path)
 
