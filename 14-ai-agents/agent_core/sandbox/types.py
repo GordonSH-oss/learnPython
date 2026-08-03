@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Literal, Mapping, Protocol, TypeAlias
+from typing import Literal, Mapping, Protocol, TypeAlias, runtime_checkable
 
 
 class StopReason(str, Enum):
@@ -91,6 +91,7 @@ class ExecutionResult:
     policy_summary: Mapping[str, object]
 
 
+@runtime_checkable
 class Sandbox(Protocol):
     def run(self, request: ExecutionRequest, policy: SandboxPolicy) -> ExecutionResult:
         ...

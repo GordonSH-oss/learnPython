@@ -77,9 +77,12 @@ def test_execution_result_holds_policy_summary(tmp_path: Path):
 
 
 def test_sandbox_is_runtime_checkable_protocol():
-    assert get_origin(Sandbox) is not None or hasattr(Sandbox, "run")
-    assert "run" in Sandbox.__dict__
-    assert get_args(ExecutionRequest)
+    class SandboxImplementation:
+        def run(self, request: ExecutionRequest, policy: SandboxPolicy) -> ExecutionResult:
+            raise NotImplementedError
+
+    assert isinstance(SandboxImplementation(), Sandbox)
+    assert issubclass(SandboxImplementation, Sandbox)
 
 
 def test_public_exports_are_available_from_agent_core():
