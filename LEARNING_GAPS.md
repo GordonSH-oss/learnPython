@@ -18,7 +18,7 @@
 | Web 后端 | 已补入口 | `12-web-backend`、`08-frameworks` | 鉴权、数据库会话、后台任务、部署 |
 | 数据分析 | 已补入口 | `13-data-science` | 可视化、特征工程、scikit-learn 基线 |
 | 深度学习 | 已形成完整路线 | `07-deep-learning` | 可继续增加 Transformer 与生产部署专题 |
-| AI 应用工程 | 已补入口 | `14-ai-applications` | embedding、Milvus RAG、评测、成本控制 |
+| AI Agent 工程 | 已补系统课程 | `14-ai-agents` | 继续扩展真实业务评测集与生产适配器 |
 | 安全和可观测性 | 已补入口 | `15-security-observability` | 指标、trace id、健康检查、审计日志 |
 | 综合项目 | 已补入口 | `16-capstone-project` | 接入真实 FastAPI、数据库、Milvus 和 LLM |
 
@@ -29,7 +29,7 @@
 3. `11-concurrency`、`09-networking`：补真实服务开发的 I/O 基础。
 4. `12-web-backend`、`02-database`：形成后端应用骨架。
 5. `13-data-science`、`07-deep-learning`：补数据和模型训练基础。
-6. `14-ai-applications`：把 API、embedding、向量库和应用评测连起来。
+6. `14-ai-agents`：把模型、工具、memory、RAG、评测和生产治理连起来。
 7. `15-security-observability`、`16-capstone-project`：补生产化和端到端项目。
 
 ## 验收标准

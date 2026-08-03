@@ -167,12 +167,15 @@ Docker、docker-compose 等容器化相关的配置和数据。
 - `README.md` - 数据分析学习指南
 - `pandas_workflow.py` - pandas 清洗和聚合示例
 
-### 📁 14-ai-applications - AI 应用工程
-学习 LLM API、embedding、RAG、检索、结构化输出和 AI 应用测试。
+### 📁 14-ai-agents - AI Agent 工程
+系统学习 Agent loop、tools、MCP、memory、RAG、规划、持久执行、多 Agent、评测、安全和可观测性。
 
 **文件列表：**
 - `README.md` - AI 应用工程学习指南
-- `rag_pipeline.py` - 不依赖外部服务的玩具 RAG 示例
+- `README.md` - 14 课 Agent 系统课程入口
+- `agent_core/` - 框架无关、可离线测试的教学核心
+- `guides/` - 从 Agent 基础到研究助手的完整教程
+- `examples/` - 离线、OpenAI Agents SDK 与 LangGraph 示例
 
 ### 📁 15-security-observability - 安全和可观测性
 学习密钥保护、日志脱敏、输入校验、健康检查和排障信息设计。
@@ -219,7 +222,7 @@ Docker、docker-compose 等容器化相关的配置和数据。
 3. **类型系统和错误处理** → 学习 `01-type-system` 与 `10-error-handle`
 4. **测试、网络和并发** → 学习 `06-tools-and-tests`、`09-networking`、`11-concurrency`
 5. **数据库和 Web 后端** → 学习 `02-database`、`12-web-backend`
-6. **数据、深度学习和 AI 应用** → 学习 `13-data-science`、`07-deep-learning`、`14-ai-applications`
+6. **数据、深度学习和 AI Agent** → 学习 `13-data-science`、`07-deep-learning`、`14-ai-agents`
 7. **部署、安全和综合项目** → 学习 `05-devops`、`15-security-observability`、`16-capstone-project`
 8. **框架源码** → 通过 `08-frameworks` 阅读 Django/FastAPI 源码，理解大型项目设计
 9. **C 扩展与底层** → 通过 `18-c-extensions` 学习 C 扩展和 CPython 源码

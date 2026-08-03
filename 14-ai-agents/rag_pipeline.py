@@ -1,7 +1,7 @@
 """Dependency-free toy RAG pipeline.
 
 Run:
-    python 14-ai-applications/rag_pipeline.py
+    python 14-ai-agents/rag_pipeline.py
 """
 
 from __future__ import annotations
@@ -49,7 +49,7 @@ def main() -> None:
     chunks = [
         Chunk("09-networking/README.md", "urllib.request 需要手动编码 JSON 请求体并解码响应。"),
         Chunk("02-database/README.md", "Milvus 适合向量相似度搜索，SQLAlchemy 适合结构化数据。"),
-        Chunk("10-error-handle/2.md", "HTTPError 的响应正文通常包含服务端返回的具体错误原因。"),
+        Chunk("10-error-handle/README.md", "HTTPError 的响应正文通常包含服务端返回的具体错误原因。"),
     ]
     query = "urllib 请求失败时如何排查错误正文？"
     matches = retrieve(query, chunks)

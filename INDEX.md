@@ -131,8 +131,12 @@ requirements/
 ├── README.md
 └── pandas_workflow.py
 
-14-ai-applications/
+14-ai-agents/
 ├── README.md
+├── agent_core/
+├── guides/
+├── examples/
+├── tests/
 └── rag_pipeline.py
 
 15-security-observability/
@@ -179,8 +183,8 @@ A: `12-web-backend/README.md` 和 `12-web-backend/fastapi_app.py`。
 **Q: 如何做 pandas 数据清洗？**  
 A: `13-data-science/pandas_workflow.py`。
 
-**Q: 如何理解 RAG 的基本数据流？**  
-A: `14-ai-applications/rag_pipeline.py`。
+**Q: 如何系统学习 Agent、tool、memory、RAG 和多 Agent？**  
+A: 从 `14-ai-agents/README.md` 开始，并按 `guides/` 编号学习。
 
 **Q: 如何学习日志脱敏和输入校验？**  
 A: `15-security-observability/logging_security.py`。

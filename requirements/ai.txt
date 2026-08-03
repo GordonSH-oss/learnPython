@@ -2,6 +2,9 @@
 -r data.txt
 
 openai>=1.0
+# Optional Agent framework lessons in 14-ai-agents.
+openai-agents>=0.2
+langgraph>=0.2
 torch>=2.2
 torchvision>=0.17
 torchaudio>=2.2

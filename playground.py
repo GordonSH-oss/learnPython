@@ -1,14 +1,27 @@
-class Demo:
-    def __init__(self, name):
-        self.name = name
+from deepagents import create_deep_agent
+from deepagents.backends import LangSmithSandbox
+from langchain_anthropic import ChatAnthropic
+from langsmith.sandbox import SandboxClient
 
-    def ___setattr__(self, name, value):
-        print(f"Setting attribute {name} to {value}")
-        super().__setattr__(name, value)
-    def greet(self):
-        return f"Hello, {self.name}!"
+client = SandboxClient()
+ls_sandbox = client.create_sandbox()
+backend = LangSmithSandbox(sandbox=ls_sandbox)
 
-if __name__ == "__main__":
-    demo = Demo("Alice")
-    demo.name = "Bob"  # This will trigger the ___setattr__ method
-    print(demo.greet())
+agent = create_deep_agent(
+    model=ChatAnthropic(model="ollama3.2:1b"),
+    system_prompt="You are a Python coding assistant with sandbox access.",
+    backend=backend,
+)
+try:
+    result = agent.invoke(
+        {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Create a small Python package and run pytest",
+                }
+            ]
+        }
+    )
+finally:
+    client.delete_sandbox(ls_sandbox.name)

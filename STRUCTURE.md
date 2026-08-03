@@ -143,8 +143,12 @@ learn-python/
 │   ├── README.md                      # 数据分析学习指南
 │   └── pandas_workflow.py             # pandas 工作流
 │
-├── 14-ai-applications/                # AI 应用工程
-│   ├── README.md                      # AI 应用学习指南
+├── 14-ai-agents/                      # AI Agent 系统工程
+│   ├── README.md                      # 14 课学习路线
+│   ├── agent_core/                    # 框架无关教学核心
+│   ├── guides/                        # Agent 系统教程
+│   ├── examples/                      # 离线与框架示例
+│   ├── tests/                         # 行为与课程测试
 │   └── rag_pipeline.py                # 玩具 RAG pipeline
 │
 ├── 15-security-observability/         # 安全和可观测性
@@ -187,7 +191,7 @@ learn-python/
 - **⚡ 并发异步**: `11-concurrency/`
 - **🕸️ Web 后端**: `12-web-backend/`
 - **📊 数据分析**: `13-data-science/`
-- **🤖 AI 应用**: `14-ai-applications/`
+- **🤖 AI Agent**: `14-ai-agents/`
 - **🔐 安全观测**: `15-security-observability/`
 - **🧱 综合项目**: `16-capstone-project/`
 
@@ -216,7 +220,7 @@ learn-python/
 ### 项目实践路径
 1. 从 `04-api-integration/` 开始集成 API
 2. 通过 `09-networking/` 理解 SDK 底层的 HTTP 调用
-3. 使用 `02-database/` 和 `14-ai-applications/` 构建 RAG
+3. 使用 `02-database/` 和 `14-ai-agents/` 构建 RAG 与 Agent
 4. 通过 `12-web-backend/` 暴露服务
 5. 用 `06-tools-and-tests/` 测试和优化
 6. 通过 `05-devops/` 和 `15-security-observability/` 部署和排障
