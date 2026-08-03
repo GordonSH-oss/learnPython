@@ -2,8 +2,57 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
+import math
 from pathlib import Path
+from types import MappingProxyType
 from typing import Literal, Mapping, Protocol, TypeAlias, runtime_checkable
+
+
+class _FrozenJSONMapping(dict[str, object]):
+    """An immutable dict that remains serializable by the standard JSON encoder."""
+
+    def __setitem__(self, key: str, value: object) -> None:
+        raise TypeError("mapping is immutable")
+
+    def __delitem__(self, key: str) -> None:
+        raise TypeError("mapping is immutable")
+
+    def clear(self) -> None:
+        raise TypeError("mapping is immutable")
+
+    def pop(self, key: str, default: object = None) -> object:
+        raise TypeError("mapping is immutable")
+
+    def popitem(self) -> tuple[str, object]:
+        raise TypeError("mapping is immutable")
+
+    def setdefault(self, key: str, default: object = None) -> object:
+        raise TypeError("mapping is immutable")
+
+    def update(self, *args: object, **kwargs: object) -> None:
+        raise TypeError("mapping is immutable")
+
+    def __ior__(self, other: object) -> _FrozenJSONMapping:
+        raise TypeError("mapping is immutable")
+
+
+def _freeze_json_value(value: object) -> object:
+    if value is None or isinstance(value, (str, bool, int)):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError("policy_summary must contain JSON-compatible values")
+        return value
+    if isinstance(value, Mapping):
+        frozen: dict[str, object] = {}
+        for key, nested_value in value.items():
+            if not isinstance(key, str):
+                raise TypeError("policy_summary keys must be strings")
+            frozen[key] = _freeze_json_value(nested_value)
+        return _FrozenJSONMapping(frozen)
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_json_value(item) for item in value)
+    raise TypeError("policy_summary must contain JSON-compatible values")
 
 
 class StopReason(str, Enum):
@@ -49,6 +98,7 @@ class PythonCode:
                 raise ValueError("file paths must be relative and stay within the workspace")
             if not isinstance(content, bytes):
                 raise TypeError("file contents must be bytes")
+        object.__setattr__(self, "files", MappingProxyType(dict(self.files)))
 
 
 ExecutionRequest: TypeAlias = PredefinedCommand | PythonCode
@@ -63,7 +113,7 @@ class SandboxPolicy:
     max_cpu_seconds: int | None = 2
     max_processes: int | None = 16
     network: Literal["deny", "allow"] = "deny"
-    environment: Mapping[str, str] = field(default_factory=dict)
+    environment: Mapping[str, str] = field(default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
         if self.timeout_seconds <= 0:
@@ -79,6 +129,12 @@ class SandboxPolicy:
                 raise ValueError(f"{name} must be positive when set")
         if self.network not in ("deny", "allow"):
             raise ValueError("network must be 'deny' or 'allow'")
+        if not isinstance(self.environment, Mapping):
+            raise TypeError("environment must be a mapping")
+        for name, value in self.environment.items():
+            if not isinstance(name, str) or not isinstance(value, str):
+                raise TypeError("environment must contain only string keys and values")
+        object.__setattr__(self, "environment", MappingProxyType(dict(self.environment)))
 
 
 @dataclass(frozen=True)
@@ -88,7 +144,18 @@ class ExecutionResult:
     returncode: int | None
     reason: StopReason
     duration_seconds: float
-    policy_summary: Mapping[str, object]
+    policy_summary: Mapping[str, object] = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.duration_seconds, (int, float)) or isinstance(self.duration_seconds, bool):
+            raise TypeError("duration_seconds must be a finite non-negative number")
+        if not math.isfinite(self.duration_seconds) or self.duration_seconds < 0:
+            raise ValueError("duration_seconds must be a finite non-negative number")
+        if not isinstance(self.policy_summary, Mapping):
+            raise TypeError("policy_summary must be a mapping")
+        summary = _freeze_json_value(self.policy_summary)
+        assert isinstance(summary, _FrozenJSONMapping)
+        object.__setattr__(self, "policy_summary", summary)
 
 
 @runtime_checkable
