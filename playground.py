@@ -1,27 +1,55 @@
+import os
+
+from daytona import Daytona, DaytonaConfig
 from deepagents import create_deep_agent
-from deepagents.backends import LangSmithSandbox
-from langchain_anthropic import ChatAnthropic
-from langsmith.sandbox import SandboxClient
+from dotenv import load_dotenv
+from langchain_daytona import DaytonaSandbox
+from langchain_ollama import ChatOllama
 
-client = SandboxClient()
-ls_sandbox = client.create_sandbox()
-backend = LangSmithSandbox(sandbox=ls_sandbox)
 
-agent = create_deep_agent(
-    model=ChatAnthropic(model="ollama3.2:1b"),
-    system_prompt="You are a Python coding assistant with sandbox access.",
-    backend=backend,
-)
-try:
-    result = agent.invoke(
-        {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "Create a small Python package and run pytest",
-                }
-            ]
-        }
+def require_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
+
+def main() -> None:
+    load_dotenv()
+
+    daytona = Daytona(
+        DaytonaConfig(api_key=require_env("DAYTONA_API_KEY"))
     )
-finally:
-    client.delete_sandbox(ls_sandbox.name)
+    sandbox = daytona.create()
+
+    try:
+        backend = DaytonaSandbox(sandbox=sandbox)
+        agent = create_deep_agent(
+            model=ChatOllama(
+                model=os.getenv("OLLAMA_MODEL", "llama3.2:1b")
+            ),
+            system_prompt=(
+                "You are a Python coding assistant with sandbox access."
+            ),
+            backend=backend,
+        )
+
+        result = agent.invoke(
+            {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": (
+                            "Create a hello world Python script and run it"
+                        ),
+                    }
+                ]
+            }
+        )
+        print(result)
+    finally:
+        daytona.delete(sandbox)
+
+
+if __name__ == "__main__":
+    main()
