@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import json
 from typing import Mapping, Sequence
 
 try:
@@ -41,10 +42,26 @@ class LocalProcessSandbox:
             if command is None:
                 return ExecutionResult("", "command is not allowlisted", None, StopReason.POLICY_DENIED,
                                        time.monotonic() - started, summary)
-            process = subprocess.Popen(command, cwd=workspace, env=self._environment(policy), stdin=subprocess.DEVNULL,
-                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False,
-                                       start_new_session=True,
-                                       preexec_fn=self._preexec(policy) if os.name != "nt" else None)
+            child_error_read, child_error_write = os.pipe() if os.name != "nt" else (None, None)
+            try:
+                process = subprocess.Popen(
+                    command, cwd=workspace, env=self._environment(policy), stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False,
+                    start_new_session=True,
+                    pass_fds=(child_error_write,) if child_error_write is not None else (),
+                    preexec_fn=self._preexec(policy, child_error_write) if child_error_write is not None else None,
+                )
+            finally:
+                if child_error_write is not None:
+                    os.close(child_error_write)
+            child_errors = self._read_child_errors(child_error_read)
+            if child_error_read is not None:
+                os.close(child_error_read)
+            if child_errors:
+                failed = set(child_errors)
+                enforced = {name: active and name not in failed for name, active in enforced.items()}
+                unsupported = [*unsupported, *[name for name in child_errors if name not in unsupported]]
+                summary = self._policy_summary(policy, enforced, unsupported)
             stdout, stderr, reason = self._collect(process, policy)
         if reason is None:
             reason = StopReason.COMPLETED if process.returncode == 0 else StopReason.FAILED
@@ -114,13 +131,49 @@ class LocalProcessSandbox:
         return stdout.decode("utf-8", "replace"), stderr.decode("utf-8", "replace"), reason
 
     @staticmethod
+    def _read_child_errors(fd: int | None) -> list[str]:
+        if fd is None:
+            return []
+        data = bytearray()
+        while True:
+            chunk = os.read(fd, 4096)
+            if not chunk:
+                break
+            data.extend(chunk)
+        if not data:
+            return []
+        try:
+            value = json.loads(data.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return ["unknown"]
+        return [str(name) for name in value] if isinstance(value, list) else ["unknown"]
+
+    @staticmethod
     def _terminate_group(process: subprocess.Popen[bytes]) -> None:
-        if process.poll() is None:
+        if os.name == "nt":
+            try:
+                subprocess.run(
+                    ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    shell=False, check=False,
+                )
+            except OSError:
+                try:
+                    process.kill()
+                except ProcessLookupError:
+                    pass
+        else:
             try:
                 os.killpg(process.pid, signal.SIGKILL)
-            except (AttributeError, ProcessLookupError):
-                process.kill()
-        process.wait()
+            except (AttributeError, ProcessLookupError, PermissionError):
+                try:
+                    process.kill()
+                except ProcessLookupError:
+                    pass
+        try:
+            process.wait()
+        except ProcessLookupError:
+            pass
 
     @staticmethod
     def _truncate_output(stdout: bytes, stderr: bytes, maximum: int) -> tuple[bytes, bytes]:
@@ -139,20 +192,24 @@ class LocalProcessSandbox:
         return enforced, unsupported
 
     @staticmethod
-    def _preexec(policy: SandboxPolicy):
+    def _preexec(policy: SandboxPolicy, error_fd: int):
         enforced, _ = LocalProcessSandbox._limit_support(policy)
 
         def apply_limits() -> None:
             assert resource is not None
             limits = {"cpu": ("RLIMIT_CPU", policy.max_cpu_seconds), "memory": ("RLIMIT_AS", policy.max_memory_bytes),
                       "open_files": ("RLIMIT_NOFILE", 64), "processes": ("RLIMIT_NPROC", policy.max_processes)}
+            failed = []
             for name, (constant, value) in limits.items():
                 if enforced[name]:
                     try:
                         resource.setrlimit(getattr(resource, constant), (value, value))
                     except (OSError, ValueError):
-                        # A platform may expose a limit but reject lowering it.
-                        continue
+                        failed.append(name)
+            if failed:
+                os.write(error_fd, json.dumps(failed).encode("utf-8"))
+            os.set_inheritable(error_fd, False)
+            os.close(error_fd)
         return apply_limits
 
     @staticmethod

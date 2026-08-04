@@ -14,6 +14,7 @@ from agent_core import (
     SandboxPolicy,
     StopReason,
 )
+from agent_core.sandbox import local
 from agent_core.sandbox.local import LocalProcessSandbox
 
 
@@ -149,6 +150,29 @@ def test_cpu_limit_is_reported_and_enforced_when_available(tmp_path: Path):
         assert result.reason is StopReason.RESOURCE_LIMIT
     else:
         pytest.skip("RLIMIT_CPU unavailable on this platform")
+
+
+
+
+def test_setrlimit_failure_is_reported_as_not_enforced(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    if os.name == "nt" or local.resource is None:
+        pytest.skip("requires Unix resource limits")
+    def fail(*_args):
+        raise OSError("blocked")
+    monkeypatch.setattr(local.resource, "setrlimit", fail)
+    result = LocalProcessSandbox().run(PythonCode("pass"), policy(tmp_path, max_cpu_seconds=1))
+    assert result.policy_summary["enforced_limits"]["cpu"] is False
+    assert "cpu" in result.policy_summary["unsupported_enforcement"]
+
+
+def test_windows_termination_uses_taskkill_tree(monkeypatch: pytest.MonkeyPatch):
+    calls = []
+    monkeypatch.setattr(local.os, "name", "nt")
+    monkeypatch.setattr(local.subprocess, "run", lambda *args, **kwargs: calls.append((args, kwargs)))
+    process = type("Process", (), {"pid": 42, "wait": lambda self: None})()
+    LocalProcessSandbox._terminate_group(process)
+    assert calls[0][0][0] == ["taskkill", "/PID", "42", "/T", "/F"]
+    assert calls[0][1]["shell"] is False
 
 
 def test_policy_summary_does_not_claim_local_network_denial_is_enforced(tmp_path: Path):
