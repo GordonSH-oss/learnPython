@@ -8,6 +8,8 @@ from .types import (
     StopReason,
 )
 
+from .local import LocalProcessSandbox
+
 __all__ = [
     "ExecutionRequest",
     "ExecutionResult",
@@ -16,4 +18,5 @@ __all__ = [
     "Sandbox",
     "SandboxPolicy",
     "StopReason",
+    "LocalProcessSandbox",
 ]

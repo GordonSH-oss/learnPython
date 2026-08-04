@@ -5,8 +5,8 @@ from .runner import AgentRunner, ModelClient
 from .tools import ToolDefinition, ToolRegistry, calculator, controlled_read
 from .types import AgentResult, AgentState, Message, ModelResponse, ToolCall, ToolResult
 from .sandbox import (
-    ExecutionRequest, ExecutionResult, PredefinedCommand, PythonCode, Sandbox, SandboxPolicy,
-    StopReason,
+    ExecutionRequest, ExecutionResult, LocalProcessSandbox, PredefinedCommand, PythonCode, Sandbox,
+    SandboxPolicy, StopReason,
 )
 
 __all__ = [
@@ -15,5 +15,5 @@ __all__ = [
     "Message", "ModelClient", "ModelResponse", "ScriptedModel", "ToolCall", "ToolDefinition",
     "ToolRegistry", "ToolResult", "calculator", "controlled_read",
     "ExecutionRequest", "ExecutionResult", "PredefinedCommand", "PythonCode", "Sandbox",
-    "SandboxPolicy", "StopReason",
+    "SandboxPolicy", "StopReason", "LocalProcessSandbox",
 ]
