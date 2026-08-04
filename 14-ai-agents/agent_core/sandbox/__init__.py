@@ -8,6 +8,7 @@ from .types import (
     StopReason,
 )
 
+from .docker import DockerSandbox
 from .local import LocalProcessSandbox
 
 __all__ = [
@@ -18,5 +19,6 @@ __all__ = [
     "Sandbox",
     "SandboxPolicy",
     "StopReason",
+    "DockerSandbox",
     "LocalProcessSandbox",
 ]
