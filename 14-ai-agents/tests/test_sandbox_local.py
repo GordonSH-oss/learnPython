@@ -117,6 +117,22 @@ def test_detects_deleted_declared_input_after_execution(tmp_path: Path):
     assert "inputs/data.txt" in result.stderr
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows chmod semantics differ")
+def test_detects_tampered_declared_input_after_execution(tmp_path: Path):
+    source = (
+        "from pathlib import Path\n"
+        "path = Path('inputs/data.txt')\n"
+        "path.chmod(0o644)\n"
+        "path.write_bytes(b'tampered')\n"
+    )
+    result = LocalProcessSandbox().run(
+        PythonCode(source, {"inputs/data.txt": b"payload"}), policy(tmp_path)
+    )
+
+    assert result.reason is StopReason.POLICY_DENIED
+    assert "declared input integrity check failed" in result.stderr
+
+
 def test_does_not_inherit_host_secrets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("HOST_ONLY_SECRET", "must-not-reach-child")
 
