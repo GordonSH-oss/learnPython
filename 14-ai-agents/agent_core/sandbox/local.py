@@ -11,6 +11,7 @@ import sys
 import tempfile
 import time
 import json
+import hashlib
 from typing import Mapping, Sequence
 
 try:
@@ -38,10 +39,15 @@ class LocalProcessSandbox:
         summary = self._policy_summary(policy, enforced, unsupported)
         with tempfile.TemporaryDirectory(dir=policy.workspace, prefix="sandbox-") as directory:
             workspace = Path(directory)
-            command = self._command_for(request, workspace)
+            try:
+                command = self._command_for(request, workspace)
+            except ValueError as error:
+                return ExecutionResult("", str(error), None, StopReason.POLICY_DENIED,
+                                       time.monotonic() - started, summary)
             if command is None:
                 return ExecutionResult("", "command is not allowlisted", None, StopReason.POLICY_DENIED,
                                        time.monotonic() - started, summary)
+            declared_integrity = self._declared_integrity(request, workspace)
             child_error_read, child_error_write = os.pipe() if os.name != "nt" else (None, None)
             try:
                 process = subprocess.Popen(
@@ -63,11 +69,15 @@ class LocalProcessSandbox:
                 unsupported = [*unsupported, *[name for name in child_errors if name not in unsupported]]
                 summary = self._policy_summary(policy, enforced, unsupported)
             stdout, stderr, reason = self._collect(process, policy)
-        if reason is None:
-            reason = StopReason.COMPLETED if process.returncode == 0 else StopReason.FAILED
-            cpu_signal = getattr(signal, "SIGXCPU", None)
-            if cpu_signal is not None and process.returncode == -cpu_signal and enforced.get("cpu"):
-                reason = StopReason.RESOURCE_LIMIT
+            if reason is None:
+                reason = StopReason.COMPLETED if process.returncode == 0 else StopReason.FAILED
+                cpu_signal = getattr(signal, "SIGXCPU", None)
+                if cpu_signal is not None and process.returncode == -cpu_signal and enforced.get("cpu"):
+                    reason = StopReason.RESOURCE_LIMIT
+            integrity_error = self._integrity_error(declared_integrity)
+        if integrity_error:
+            stderr = f"{stderr}{integrity_error}\n"
+            reason = StopReason.POLICY_DENIED
         return ExecutionResult(stdout, stderr, process.returncode, reason, time.monotonic() - started, summary)
 
     def _command_for(self, request: ExecutionRequest, workspace: Path) -> list[str] | None:
@@ -78,8 +88,35 @@ class LocalProcessSandbox:
             raise TypeError("request must be a supported sandbox request")
         self._write_file(workspace, "program.py", request.source.encode("utf-8"))
         for relative_path, content in request.files.items():
+            if relative_path == "program.py":
+                raise ValueError("declared file path must not be program.py")
             self._write_file(workspace, relative_path, content, readonly=True)
         return [sys.executable, "program.py"]
+
+    @staticmethod
+    def _declared_integrity(request: ExecutionRequest, workspace: Path) -> dict[str, tuple[Path, str]]:
+        """Capture expected bytes; local read-only modes are detection, not isolation."""
+        if not isinstance(request, PythonCode):
+            return {}
+        return {
+            relative_path: (workspace / relative_path, hashlib.sha256(content).hexdigest())
+            for relative_path, content in request.files.items()
+        }
+
+    @staticmethod
+    def _integrity_error(declared: Mapping[str, tuple[Path, str]]) -> str | None:
+        changed = []
+        for relative_path, (path, digest) in declared.items():
+            try:
+                current = path.read_bytes()
+            except (FileNotFoundError, OSError):
+                changed.append(relative_path)
+                continue
+            if hashlib.sha256(current).hexdigest() != digest:
+                changed.append(relative_path)
+        if not changed:
+            return None
+        return "declared input integrity check failed: " + ", ".join(sorted(changed))
 
     @staticmethod
     def _write_file(workspace: Path, relative_path: str, content: bytes, readonly: bool = False) -> None:

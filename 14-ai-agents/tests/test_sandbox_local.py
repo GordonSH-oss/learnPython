@@ -86,6 +86,37 @@ def test_declared_input_files_are_read_only(tmp_path: Path):
         assert result.stdout == "write-failed\npayload\n"
 
 
+def test_rejects_declared_file_that_collides_with_program(tmp_path: Path):
+    result = LocalProcessSandbox().run(
+        PythonCode("print('source-ran')", {"program.py": b"print('declared-file-ran')"}),
+        policy(tmp_path),
+    )
+
+    assert result.reason is StopReason.POLICY_DENIED
+    assert result.returncode is None
+    assert result.stdout == ""
+    assert "program.py" in result.stderr
+
+
+def test_detects_deleted_declared_input_after_execution(tmp_path: Path):
+    source = (
+        "from pathlib import Path\n"
+        "path = Path('inputs/data.txt')\n"
+        "path.chmod(0o644)\n"
+        "path.unlink()\n"
+        "print('child-completed')\n"
+    )
+    result = LocalProcessSandbox().run(
+        PythonCode(source, {"inputs/data.txt": b"payload"}), policy(tmp_path)
+    )
+
+    assert result.stdout == "child-completed\n"
+    assert result.returncode == 0
+    assert result.reason is StopReason.POLICY_DENIED
+    assert "declared input integrity check failed" in result.stderr
+    assert "inputs/data.txt" in result.stderr
+
+
 def test_does_not_inherit_host_secrets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("HOST_ONLY_SECRET", "must-not-reach-child")
 
