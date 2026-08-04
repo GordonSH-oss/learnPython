@@ -78,11 +78,11 @@ class LocalProcessSandbox:
             raise TypeError("request must be a supported sandbox request")
         self._write_file(workspace, "program.py", request.source.encode("utf-8"))
         for relative_path, content in request.files.items():
-            self._write_file(workspace, relative_path, content)
+            self._write_file(workspace, relative_path, content, readonly=True)
         return [sys.executable, "program.py"]
 
     @staticmethod
-    def _write_file(workspace: Path, relative_path: str, content: bytes) -> None:
+    def _write_file(workspace: Path, relative_path: str, content: bytes, readonly: bool = False) -> None:
         destination = workspace.joinpath(relative_path)
         root = workspace.resolve()
         if not destination.parent.resolve().is_relative_to(root):
@@ -91,6 +91,8 @@ class LocalProcessSandbox:
         if destination.exists() and destination.is_symlink():
             raise ValueError("declared file path must not be a symbolic link")
         destination.write_bytes(content)
+        if readonly:
+            destination.chmod(0o444)
 
     @staticmethod
     def _environment(policy: SandboxPolicy) -> dict[str, str]:

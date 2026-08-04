@@ -65,6 +65,27 @@ def test_writes_declared_input_files(tmp_path: Path):
     assert result.reason is StopReason.COMPLETED
 
 
+def test_declared_input_files_are_read_only(tmp_path: Path):
+    source = (
+        "from pathlib import Path\n"
+        "path = Path('inputs/data.txt')\n"
+        "try:\n"
+        "    path.write_bytes(b'tampered')\n"
+        "except OSError:\n"
+        "    print('write-failed')\n"
+        "print(path.read_bytes().decode())\n"
+    )
+    result = LocalProcessSandbox().run(
+        PythonCode(source, {"inputs/data.txt": b"payload"}), policy(tmp_path)
+    )
+
+    assert result.reason is StopReason.COMPLETED
+    if os.name == "nt":
+        assert result.stdout in {"payload\n", "write-failed\ntampered\n"}
+    else:
+        assert result.stdout == "write-failed\npayload\n"
+
+
 def test_does_not_inherit_host_secrets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("HOST_ONLY_SECRET", "must-not-reach-child")
 
@@ -78,11 +99,13 @@ def test_does_not_inherit_host_secrets(tmp_path: Path, monkeypatch: pytest.Monke
 
 def test_uses_only_dedicated_workspace(tmp_path: Path):
     result = LocalProcessSandbox().run(
-        PythonCode("from pathlib import Path\nprint(Path.cwd().resolve().is_relative_to(Path.cwd().resolve().parent))"),
+        PythonCode("from pathlib import Path\nprint(Path.cwd())"),
         policy(tmp_path),
     )
 
-    assert result.stdout == "True\n"
+    workspace = Path(result.stdout.strip())
+    assert workspace.is_relative_to(tmp_path)
+    assert workspace != tmp_path
     assert list(tmp_path.iterdir()) == []
 
 
