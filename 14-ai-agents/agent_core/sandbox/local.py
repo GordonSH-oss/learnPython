@@ -65,7 +65,8 @@ class LocalProcessSandbox:
             stdout, stderr, reason = self._collect(process, policy)
         if reason is None:
             reason = StopReason.COMPLETED if process.returncode == 0 else StopReason.FAILED
-            if process.returncode is not None and process.returncode < 0 and enforced:
+            cpu_signal = getattr(signal, "SIGXCPU", None)
+            if cpu_signal is not None and process.returncode == -cpu_signal and enforced.get("cpu"):
                 reason = StopReason.RESOURCE_LIMIT
         return ExecutionResult(stdout, stderr, process.returncode, reason, time.monotonic() - started, summary)
 

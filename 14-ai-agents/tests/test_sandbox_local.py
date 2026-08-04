@@ -152,6 +152,20 @@ def test_cpu_limit_is_reported_and_enforced_when_available(tmp_path: Path):
         pytest.skip("RLIMIT_CPU unavailable on this platform")
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="signal return codes require Unix")
+def test_sigkill_is_reported_as_failure_even_when_cpu_limit_is_enforced(tmp_path: Path):
+    result = LocalProcessSandbox().run(
+        PythonCode("import os, signal\nos.kill(os.getpid(), signal.SIGKILL)"),
+        policy(tmp_path, max_cpu_seconds=1),
+    )
+
+    if result.policy_summary["enforced_limits"].get("cpu"):
+        assert result.returncode == -signal.SIGKILL
+        assert result.reason is StopReason.FAILED
+    else:
+        pytest.skip("RLIMIT_CPU unavailable on this platform")
+
+
 
 
 def test_setrlimit_failure_is_reported_as_not_enforced(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
