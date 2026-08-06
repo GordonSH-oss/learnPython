@@ -43,18 +43,22 @@ state -> checkpoint       trace -> evaluation       policy -> guardrails
 | 09 | [Multi-agent](guides/09-multi-agent.md) | 何时拆角色，怎样控制交接？ |
 | 10 | [框架对比](guides/10-framework-comparison.md) | 三种实现分别隐藏了什么？ |
 | 11 | [评测与测试](guides/11-evaluation-and-testing.md) | 如何稳定判断 Agent 是否变好了？ |
-| 12 | [安全与 Guardrails](guides/12-security-and-guardrails.md) | 不可信内容如何跨越工具边界？ |
-| 13 | [可观测性与生产](guides/13-observability-and-production.md) | 如何定位成本、延迟和失败？ |
-| 14 | [研究助手项目](guides/14-capstone-research-agent.md) | 如何把所有能力组合成完整系统？ |
+| 12 | [应用层安全与 Guardrails](guides/12-security-and-guardrails.md) | 不可信内容如何跨越工具边界？ |
+| 13 | [Sandbox 与策略](guides/13-sandbox-and-policies.md) | 执行边界、请求和策略如何分层？ |
+| 14 | [本机进程 Sandbox](guides/14-local-process-sandbox.md) | 如何限制本机代码执行的影响？ |
+| 15 | [Docker Sandbox](guides/15-docker-sandbox.md) | 如何用可选容器加强执行隔离？ |
+| 16 | [身份、数据与供应链](guides/16-identity-data-supply-chain.md) | 如何隔离租户、凭据和依赖风险？ |
+| 17 | [可观测性与生产](guides/17-observability-and-production.md) | 如何定位成本、延迟和失败？ |
+| 18 | [研究助手项目](guides/18-capstone-research-agent.md) | 如何把所有能力组合成完整系统？ |
 
-建议按顺序完成 01-08。09-13 可按项目需要学习，最后完成 14。
+建议按顺序完成 01-08。09-16 建议结合项目练习，17 用于上线前检查，最后完成 18。
 
 ## 目录
 
 ```text
 14-ai-agents/
 ├── agent_core/       # 框架无关、可测试的教学核心
-├── guides/           # 14 课正文
+├── guides/           # 18 课正文
 ├── examples/         # 离线、OpenAI Agents SDK、LangGraph 示例
 ├── tests/            # 核心行为和课程结构测试
 ├── rag_pipeline.py   # 标准库玩具 RAG
@@ -71,6 +75,8 @@ python 14-ai-agents/rag_pipeline.py
 python 14-ai-agents/examples/research_agent.py
 pytest 14-ai-agents/tests
 ```
+
+Docker sandbox 是可选集成能力。安装并运行 Docker 后，可单独执行 `pytest 14-ai-agents/tests/test_sandbox_docker.py -q`；没有 Docker 时，集成测试会明确 skip，命令构造测试仍会运行。生成的代码必须先经过工具授权和 sandbox 执行器，本机进程模式不是强安全边界。
 
 选修框架示例：
 
