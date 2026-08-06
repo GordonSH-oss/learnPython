@@ -234,8 +234,8 @@ class DockerSandbox:
                 break
         selector.close()
         if reason is not None:
-            self._remove_container(container_name)
             self._terminate_client(process)
+            self._remove_container(container_name)
         else:
             process.wait()
         return bytes(buffers["stdout"]), bytes(buffers["stderr"]), reason
