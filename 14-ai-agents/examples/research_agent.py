@@ -1,7 +1,8 @@
-"""Offline capstone: retrieval as a tool, scoped memory, and citations."""
+"""Offline capstone: retrieval, scoped memory, and sandboxed code execution."""
 from pathlib import Path
 import json
 import sys
+import tempfile
 
 ROOT = Path(__file__).parents[1]
 sys.path.insert(0, str(ROOT))
@@ -9,8 +10,12 @@ sys.path.insert(0, str(ROOT))
 from agent_core import (  # noqa: E402
     AgentRunner,
     InMemoryStore,
+    LocalProcessSandbox,
     MemoryRecord,
     ModelResponse,
+    PythonCode,
+    Sandbox,
+    SandboxPolicy,
     ScriptedModel,
     ToolCall,
     ToolDefinition,
@@ -34,7 +39,53 @@ def search_documents(query: str) -> str:
     )
 
 
-def build_research_agent() -> AgentRunner:
+def _scope(tenant_id: str, session_id: str) -> str:
+    if not tenant_id or not session_id or any(value in tenant_id + session_id for value in "/\\"):
+        raise ValueError("tenant and session identifiers must be non-empty path-safe values")
+    return f"{tenant_id}:{session_id}"
+
+
+def execute_code(
+    source: str,
+    *,
+    tenant_id: str,
+    session_id: str,
+    workspace_root: Path,
+    sandbox: Sandbox,
+) -> str:
+    """Execute typed code through the configured sandbox and return safe metadata."""
+    scope = _scope(tenant_id, session_id)
+    result = sandbox.run(
+        PythonCode(source),
+        SandboxPolicy(workspace=workspace_root / tenant_id / session_id),
+    )
+    return json.dumps(
+        {
+            "scope": scope,
+            "executor": result.policy_summary.get("executor"),
+            "reason": result.reason.value,
+            "returncode": result.returncode,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+        },
+        ensure_ascii=False,
+    )
+
+
+def build_research_agent(
+    tenant_id: str = "tenant-1",
+    session_id: str = "research-1",
+    *,
+    workspace_root: Path | None = None,
+    memory: InMemoryStore | None = None,
+    sandbox: Sandbox | None = None,
+) -> AgentRunner:
+    """Build the offline agent with isolated memory and execution scopes."""
+    workspace_root = workspace_root or Path(tempfile.gettempdir()) / "research-agent-workspaces"
+    memory = memory or InMemoryStore()
+    sandbox = sandbox or LocalProcessSandbox()
+    _scope(tenant_id, session_id)
+
     model = ScriptedModel([
         ModelResponse(tool_calls=(ToolCall("search-1", "search_documents", {"query": "memory RAG 区别"}),)),
         ModelResponse(content="长期 memory 保存用户事实与偏好；RAG 提供外部知识。[guides/05-memory.md]"),
@@ -43,14 +94,27 @@ def build_research_agent() -> AgentRunner:
     tools.register(
         ToolDefinition("search_documents", "检索本地课程资料并返回来源", {"query": str}, search_documents)
     )
+    tools.register(
+        ToolDefinition(
+            "execute_code",
+            "通过租户和会话隔离的 sandbox 执行 Python 代码",
+            {"source": str},
+            lambda source: execute_code(
+                source, tenant_id=tenant_id, session_id=session_id,
+                workspace_root=workspace_root, sandbox=sandbox,
+            ),
+            requires_approval=True,
+        )
+    )
     return AgentRunner(model, tools)
 
 
 def main() -> None:
     memory = InMemoryStore()
-    memory.put(MemoryRecord("learner-1", "answer_style", "用户偏好简洁并保留引用"))
-    preference = memory.search("learner-1", "简洁 引用")[0].value
-    result = build_research_agent().run(
+    scope = _scope("tenant-1", "research-1")
+    memory.put(MemoryRecord(scope, "answer_style", "用户偏好简洁并保留引用"))
+    preference = memory.search(scope, "简洁 引用")[0].value
+    result = build_research_agent(memory=memory).run(
         f"解释 memory 和 RAG 的区别。回答偏好：{preference}", session_id="research-1"
     )
     print(result.output)
