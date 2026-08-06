@@ -22,6 +22,43 @@ def policy(workspace: Path, **kwargs: object) -> SandboxPolicy:
     return SandboxPolicy(workspace=workspace, **kwargs)
 
 
+def test_build_docker_args_rejects_image_starting_with_dash(tmp_path: Path):
+    with pytest.raises(ValueError, match="image"):
+        build_docker_args(PythonCode("pass"), policy(tmp_path), tmp_path / "work", image="-bad")
+
+
+def test_build_docker_args_mounts_workspace_read_only_and_tmpfs_writable(tmp_path: Path):
+    args = build_docker_args(PythonCode("pass"), policy(tmp_path), tmp_path / "work", image=IMAGE)
+
+    assert "--mount=type=bind,src=%s,dst=/workspace,readonly" % (tmp_path / "work") in args
+    assert "--tmpfs=/tmp:rw,noexec,nosuid,nodev,size=16m" in args
+
+
+def test_build_docker_args_uses_container_name_instead_of_cidfile(tmp_path: Path):
+    args = build_docker_args(
+        PythonCode("pass"), policy(tmp_path), tmp_path / "work", image=IMAGE,
+        container_name="sandbox-test",
+    )
+
+    assert "--name=sandbox-test" in args
+    assert not any(arg.startswith("--cidfile=") for arg in args)
+
+
+def test_python_code_rejects_normalized_program_collision(tmp_path: Path):
+    with pytest.raises(ValueError, match="program.py"):
+        build_docker_args(
+            PythonCode("pass", {"./program.py": b"collision"}),
+            policy(tmp_path), tmp_path / "work", image=IMAGE,
+        )
+
+
+def test_policy_summary_explains_cpu_seconds_are_not_docker_cpu_time(tmp_path: Path):
+    summary = DockerSandbox(IMAGE)._policy_summary(policy(tmp_path, max_cpu_seconds=2))
+
+    assert "not" in summary["limits"]["cpu_seconds"]
+    assert "Docker" in summary["limits"]["cpu_seconds"]
+
+
 def test_build_docker_args_applies_isolation_and_resource_limits(tmp_path: Path):
     workspace = tmp_path / "sandbox-workspace"
     request = PythonCode("print('ok')")
@@ -43,7 +80,7 @@ def test_build_docker_args_applies_isolation_and_resource_limits(tmp_path: Path)
     assert "--memory=123456789" in args
     assert "--cpus=1" in args
     assert "--pids-limit=7" in args
-    assert f"--mount=type=bind,src={workspace},dst=/workspace" in args
+    assert f"--mount=type=bind,src={workspace},dst=/workspace,readonly" in args
     assert "--workdir=/workspace" in args
     assert args[-4:] == ["--entrypoint=", IMAGE, "python", "program.py"]
     joined = " ".join(args)
@@ -90,7 +127,7 @@ def test_predefined_command_requires_allowlist(tmp_path: Path):
 def test_predefined_command_uses_only_allowlisted_executable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     captured: list[list[str]] = []
 
-    def fake_collect(self: DockerSandbox, process: object, sandbox_policy: SandboxPolicy, cidfile: Path):
+    def fake_collect(self: DockerSandbox, process: object, sandbox_policy: SandboxPolicy, container_name: str):
         return b"ok\n", b"", None
 
     class FakeProcess:
@@ -104,6 +141,7 @@ def test_predefined_command_uses_only_allowlisted_executable(tmp_path: Path, mon
 
     monkeypatch.setattr(subprocess, "Popen", fake_popen)
     monkeypatch.setattr(DockerSandbox, "_collect", fake_collect)
+    monkeypatch.setattr(DockerSandbox, "_remove_container", lambda self, name: None)
     result = DockerSandbox(IMAGE, command_allowlist=ALLOWLIST).run(
         PredefinedCommand("python", ("--version",)), policy(tmp_path)
     )
@@ -129,7 +167,8 @@ def test_python_code_writes_program_and_declared_files(tmp_path: Path, monkeypat
         return FakeProcess()
 
     monkeypatch.setattr(subprocess, "Popen", fake_popen)
-    monkeypatch.setattr(DockerSandbox, "_collect", lambda self, process, sandbox_policy, cidfile: (b"done\n", b"", None))
+    monkeypatch.setattr(DockerSandbox, "_collect", lambda self, process, sandbox_policy, container_name: (b"done\n", b"", None))
+    monkeypatch.setattr(DockerSandbox, "_remove_container", lambda self, name: None)
     result = DockerSandbox(IMAGE).run(
         PythonCode("print('done')", {"inputs/data.txt": b"payload"}), policy(tmp_path)
     )
@@ -142,7 +181,7 @@ def test_python_code_writes_program_and_declared_files(tmp_path: Path, monkeypat
     assert result.stdout == "done\n"
 
 
-def test_timeout_kills_container_by_cid(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_timeout_kills_container_by_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     calls: list[list[str]] = []
 
     class FakeStream:
@@ -160,9 +199,10 @@ def test_timeout_kills_container_by_cid(tmp_path: Path, monkeypatch: pytest.Monk
         def wait(self, timeout: float | None = None) -> int:
             return self.returncode or 0
 
+    container_names: list[str] = []
+
     def fake_popen(args: list[str], **kwargs: object) -> FakeProcess:
-        cidfile = Path(next(arg for arg in args if arg.startswith("--cidfile=")).split("=", 1)[1])
-        cidfile.write_text("container-id\n")
+        container_names.append(next(arg for arg in args if arg.startswith("--name=")).split("=", 1)[1])
         return FakeProcess()
 
     def fake_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
@@ -181,7 +221,8 @@ def test_timeout_kills_container_by_cid(tmp_path: Path, monkeypatch: pytest.Monk
     result = DockerSandbox(IMAGE).run(PythonCode("pass"), policy(tmp_path, timeout_seconds=0.1))
 
     assert result.reason is StopReason.TIMEOUT
-    assert ["docker", "kill", "container-id"] in calls
+    assert result.returncode is None
+    assert ["docker", "rm", "-f", container_names[0]] in calls
 
 
 def test_output_is_bounded_and_reported(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -220,6 +261,7 @@ def test_output_is_bounded_and_reported(tmp_path: Path, monkeypatch: pytest.Monk
 
     process = FakeProcess()
     monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: process)
+    monkeypatch.setattr(DockerSandbox, "_remove_container", lambda self, name: None)
     monkeypatch.setattr(selectors, "DefaultSelector", FakeSelector)
     monkeypatch.setattr(os, "read", lambda fd, size: b"x" * size)
 

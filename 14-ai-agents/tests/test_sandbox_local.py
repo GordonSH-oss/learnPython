@@ -98,6 +98,16 @@ def test_rejects_declared_file_that_collides_with_program(tmp_path: Path):
     assert "program.py" in result.stderr
 
 
+def test_rejects_normalized_declared_file_collision(tmp_path: Path):
+    result = LocalProcessSandbox().run(
+        PythonCode("print('source-ran')", {"./program.py": b"declared-file-ran"}),
+        policy(tmp_path),
+    )
+
+    assert result.reason is StopReason.POLICY_DENIED
+    assert "program.py" in result.stderr
+
+
 def test_detects_deleted_declared_input_after_execution(tmp_path: Path):
     source = (
         "from pathlib import Path\n"

@@ -88,8 +88,8 @@ class LocalProcessSandbox:
             raise TypeError("request must be a supported sandbox request")
         self._write_file(workspace, "program.py", request.source.encode("utf-8"))
         for relative_path, content in request.files.items():
-            if relative_path == "program.py":
-                raise ValueError("declared file path must not be program.py")
+            if Path(relative_path).as_posix() == "program.py":
+                raise ValueError("declared file path must not resolve to program.py")
             self._write_file(workspace, relative_path, content, readonly=True)
         return [sys.executable, "program.py"]
 
