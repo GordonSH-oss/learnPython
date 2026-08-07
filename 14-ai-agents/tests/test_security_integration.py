@@ -17,8 +17,9 @@ from agent_core import (  # noqa: E402
     PythonCode,
     SandboxPolicy,
     StopReason,
+    ToolCall,
 )
-from examples.research_agent import execute_code  # noqa: E402
+from examples.research_agent import _scope, build_research_agent, execute_code  # noqa: E402
 
 
 ALLOWLIST = {"python": (sys.executable,)}
@@ -100,6 +101,36 @@ def test_timeout_and_output_limit_are_deterministic(tmp_path: Path):
 
 
 def test_execute_code_requires_typed_scope_identifiers(tmp_path: Path):
-    with pytest.raises(ValueError):
-        execute_code("pass", tenant_id="../other", session_id="s", workspace_root=tmp_path,
-                     sandbox=LocalProcessSandbox())
+    invalid_pairs = (
+        ("../other", "s"),
+        ("..", "s"),
+        ("tenant:a", "s"),
+        ("a", "session:b"),
+    )
+    for tenant_id, session_id in invalid_pairs:
+        with pytest.raises(ValueError):
+            execute_code(
+                "pass", tenant_id=tenant_id, session_id=session_id,
+                workspace_root=tmp_path, sandbox=LocalProcessSandbox(),
+            )
+
+
+def test_scope_encoding_cannot_collide_across_identifier_pairs():
+    assert _scope("tenant-a", "session") != _scope("tenant", "a-session")
+
+
+def test_research_agent_wires_approval_policy(tmp_path: Path):
+    approvals = []
+    runner = build_research_agent(
+        workspace_root=tmp_path,
+        approve=lambda call: approvals.append(call.name) or True,
+    )
+
+    result = runner.tools.execute(
+        ToolCall("code-1", "execute_code", {"source": "print('approved')"}),
+        runner.approve,
+    )
+
+    assert result.ok
+    assert approvals == ["execute_code"]
+    assert json.loads(result.output)["stdout"] == "approved\n"

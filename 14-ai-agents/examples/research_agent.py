@@ -1,8 +1,10 @@
 """Offline capstone: retrieval, scoped memory, and sandboxed code execution."""
 from pathlib import Path
 import json
+import re
 import sys
 import tempfile
+from typing import Callable
 
 ROOT = Path(__file__).parents[1]
 sys.path.insert(0, str(ROOT))
@@ -40,8 +42,9 @@ def search_documents(query: str) -> str:
 
 
 def _scope(tenant_id: str, session_id: str) -> str:
-    if not tenant_id or not session_id or any(value in tenant_id + session_id for value in "/\\"):
-        raise ValueError("tenant and session identifiers must be non-empty path-safe values")
+    identifier = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}\Z")
+    if not identifier.fullmatch(tenant_id) or not identifier.fullmatch(session_id):
+        raise ValueError("tenant and session identifiers must use 1-64 letters, digits, underscores, or hyphens")
     return f"{tenant_id}:{session_id}"
 
 
@@ -79,6 +82,7 @@ def build_research_agent(
     workspace_root: Path | None = None,
     memory: InMemoryStore | None = None,
     sandbox: Sandbox | None = None,
+    approve: Callable[[ToolCall], bool] | None = None,
 ) -> AgentRunner:
     """Build the offline agent with isolated memory and execution scopes."""
     workspace_root = workspace_root or Path(tempfile.gettempdir()) / "research-agent-workspaces"
@@ -106,7 +110,7 @@ def build_research_agent(
             requires_approval=True,
         )
     )
-    return AgentRunner(model, tools)
+    return AgentRunner(model, tools, approve=approve)
 
 
 def main() -> None:
