@@ -9,7 +9,7 @@ from agent_core import AgentRunner, ModelResponse, ScriptedModel, ToolCall, Tool
 
 def main() -> None:
     model = ScriptedModel([
-        ModelResponse(tool_calls=(ToolCall("calc-1", "calculate", {"expression": "40 + 2"}),)),
+        ModelResponse(tool_calls=(ToolCall("calc-1", "calculate", {"expression": "47 + 2"}),)),
         ModelResponse(content="答案：42"),
     ])
     tools = ToolRegistry()
