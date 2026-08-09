@@ -9,7 +9,7 @@ ROOT = Path(__file__).parents[2]
 
 def test_all_notebooks_are_valid_and_have_teaching_sections() -> None:
     notebooks = sorted((ROOT / "pytorch/notebooks").glob("*.ipynb"))
-    assert len(notebooks) == 25
+    assert len(notebooks) == 29
     required = ("学习目标", "概念模型", "检查点", "试一试", "常见错误")
     for path in notebooks:
         notebook = json.loads(path.read_text())
@@ -18,7 +18,7 @@ def test_all_notebooks_are_valid_and_have_teaching_sections() -> None:
         assert notebook["nbformat"] == 4
         if path.name != "00-prerequites.ipynb":
             assert all(section in text for section in required)
-        minimum_code_cells = 3 if path.name in {"18-data-preprocessing-and-augmentation.ipynb", "19-experiment-management.ipynb", "24-deployment-contract.ipynb"} else 4
+        minimum_code_cells = 2 if path.name in {"25-custom-autograd-and-gradcheck.ipynb", "27-distributed-data-parallel.ipynb"} else 3 if path.name in {"18-data-preprocessing-and-augmentation.ipynb", "19-experiment-management.ipynb", "24-deployment-contract.ipynb", "26-transformer-decoder-generation.ipynb", "28-torch-compile.ipynb"} else 4
         assert len(code_cells) >= minimum_code_cells
         assert sum(len(cell["source"]) for cell in code_cells) >= 12
 
@@ -37,6 +37,10 @@ def test_curriculum_topics_have_executable_lessons() -> None:
         "22-training-stability.ipynb": ("accumulation_steps", "clip_grad_norm_", "scheduler", "梯度范数"),
         "23-reading-and-modifying-pytorch-code.ipynb": ("inspect.signature", "_run_epoch", "ImageClassifier", "调用关系"),
         "24-deployment-contract.ipynb": ("input_shape", "class_names", "inference_mode", "artifact"),
+        "25-custom-autograd-and-gradcheck.ipynb": ("gradcheck", "save_for_backward", "backward", "Function"),
+        "26-transformer-decoder-generation.ipynb": ("teacher forcing", "causal mask", "generate", "Decoder"),
+        "27-distributed-data-parallel.ipynb": ("DistributedDataParallel", "DistributedSampler", "rank", "world_size"),
+        "28-torch-compile.ipynb": ("torch.compile", "graph break", "预热", "compiled_output"),
     }
     for notebook, topics in required_topics.items():
         assert notebook in notebooks
