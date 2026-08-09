@@ -15,7 +15,22 @@ jupyter lab 07-deep-learning/pytorch/notebooks
 
 ## 如何使用课程
 
-不要按照编号机械地一次学完 29 个 Notebook。建议按以下四个阶段学习，每个阶段完成验收后再继续。
+课程共有 30 个 Notebook，但文件编号不是严格的学习顺序。请使用下面的 canonical learning path；`00-prerequites.ipynb` 只用于环境检查和工具查询，不属于必读主线，也不建议从头到尾顺序阅读。
+
+### Canonical Learning Path
+
+```text
+01 -> 02 -> 25 -> 03 -> 29 -> 06 -> 04 -> 18 -> 05 -> 15 -> 22
+   -> 07 -> 08 -> 16 -> 17
+   -> 10 -> 11 -> 14 -> 26
+   -> 09 -> 12 -> 21 -> 19 -> 20 -> 23 -> 13 -> 24 -> 27 -> 28
+```
+
+- `25` 是 `02` 的深入案例：自定义梯度与 `gradcheck`。
+- `29` 必须在训练循环前学习，用于确定模型输出、标签和 loss 契约。
+- `18` 必须在真实数据项目之前学习，避免预处理和数据泄漏问题。
+- `26` 是 Attention/Encoder 之后的生成模型拓展。
+- `27`、`28` 放在最后，分别需要分布式运行环境和 PyTorch 2.x。
 
 ### 阶段 1：PyTorch 核心基础（必修）
 
@@ -23,10 +38,12 @@ jupyter lab 07-deep-learning/pytorch/notebooks
 | --- | --- | --- |
 | 01 张量与设备 | shape、dtype、广播、view、device | 能预测常见 Tensor 操作结果 |
 | 02 自动微分 | 计算图、叶子节点、梯度累积 | 能解释和检查简单梯度 |
+| 25 自定义 Autograd | Function、backward、gradcheck | 能验证自定义梯度 |
 | 03 神经网络 | Module、参数注册、logits、buffer | 能独立定义两层模型 |
-| 04 数据加载 | Dataset、DataLoader、数据划分 | 能构建训练/验证数据管道 |
+| 29 任务契约 | 回归、二分类、多分类、多标签 | 能正确匹配输出、标签和 loss |
+| 06 线性回归 | 参数更新和损失曲线 | 完成第一个最小训练任务 |
+| 04、18 数据管道 | Dataset、DataLoader、预处理、泄漏 | 能构建可靠的数据边界 |
 | 05 训练与验证 | train/eval、指标、checkpoint | 能写完整训练验证循环 |
-| 06 线性回归 | 参数更新和损失曲线 | 完成第一个可恢复训练任务 |
 
 阶段验收：独立完成一个合成数据分类任务，包含 Dataset、模型、训练、验证、最佳 checkpoint 和推理。
 
@@ -63,7 +80,24 @@ jupyter lab 07-deep-learning/pytorch/notebooks
 | 27 | DDP、rank、world size、DistributedSampler | 多进程/多 GPU 环境完成全部练习 |
 | 28 | `torch.compile`、graph break | PyTorch 2.x |
 
-`00-prerequites.ipynb` 是工具索引，不属于线性学习主线。需要查询 NumPy、Pandas、torchvision、Hugging Face、LoRA 或其他生态工具时再阅读对应章节。
+### 内容分类
+
+- 参考索引：`00`
+- 基础机制：`01`、`02`、`03`、`04`、`06`、`25`、`29`
+- 模型结构：`07`、`08`、`09`、`10`、`11`、`14`、`26`
+- 训练工程：`05`、`15`、`18`、`19`、`20`、`21`、`22`、`23`
+- 部署与系统：`12`、`13`、`24`、`27`、`28`
+- 综合项目：`16`、`17`
+
+需要查询 NumPy、Pandas、torchvision、Hugging Face、LoRA 或其他生态工具时，再按需阅读 `00-prerequites.ipynb` 对应章节。
+
+### 分类验收
+
+- 基础机制：手算 shape 和广播，验证一阶/二阶导，正确匹配 loss 与标签。
+- 模型结构：独立实现 MLP，解释 CNN shape，构造 Attention mask，并完成一次 Encoder 分类或 Decoder 生成。
+- 训练工程：手写训练/验证循环，恢复 checkpoint，修复至少三类训练错误，并保存配置和指标。
+- 部署与系统：完成导出 round-trip，定义推理契约，理解 DDP 数据分片，并比较 eager/compiled 输出。
+- 综合项目：从预处理开始完成真实数据项目，输出曲线、测试指标、错误分析和推理结果。
 
 ## 完成标准
 

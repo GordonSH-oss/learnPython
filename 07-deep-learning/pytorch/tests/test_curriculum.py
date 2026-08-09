@@ -9,7 +9,7 @@ ROOT = Path(__file__).parents[2]
 
 def test_all_notebooks_are_valid_and_have_teaching_sections() -> None:
     notebooks = sorted((ROOT / "pytorch/notebooks").glob("*.ipynb"))
-    assert len(notebooks) == 29
+    assert len(notebooks) == 30
     required = ("学习目标", "概念模型", "检查点", "试一试", "常见错误")
     for path in notebooks:
         notebook = json.loads(path.read_text())
@@ -18,7 +18,7 @@ def test_all_notebooks_are_valid_and_have_teaching_sections() -> None:
         assert notebook["nbformat"] == 4
         if path.name != "00-prerequites.ipynb":
             assert all(section in text for section in required)
-        minimum_code_cells = 2 if path.name in {"25-custom-autograd-and-gradcheck.ipynb", "27-distributed-data-parallel.ipynb"} else 3 if path.name in {"18-data-preprocessing-and-augmentation.ipynb", "19-experiment-management.ipynb", "24-deployment-contract.ipynb", "26-transformer-decoder-generation.ipynb", "28-torch-compile.ipynb"} else 4
+        minimum_code_cells = 2 if path.name in {"25-custom-autograd-and-gradcheck.ipynb", "27-distributed-data-parallel.ipynb"} else 3 if path.name in {"18-data-preprocessing-and-augmentation.ipynb", "19-experiment-management.ipynb", "24-deployment-contract.ipynb", "26-transformer-decoder-generation.ipynb", "28-torch-compile.ipynb", "29-loss-and-task-contracts.ipynb"} else 4
         assert len(code_cells) >= minimum_code_cells
         assert sum(len(cell["source"]) for cell in code_cells) >= 12
 
@@ -41,6 +41,7 @@ def test_curriculum_topics_have_executable_lessons() -> None:
         "26-transformer-decoder-generation.ipynb": ("teacher forcing", "causal mask", "generate", "Decoder"),
         "27-distributed-data-parallel.ipynb": ("DistributedDataParallel", "DistributedSampler", "rank", "world_size"),
         "28-torch-compile.ipynb": ("torch.compile", "graph break", "预热", "compiled_output"),
+        "29-loss-and-task-contracts.ipynb": ("BCEWithLogitsLoss", "CrossEntropyLoss", "multi-hot", "macro F1"),
     }
     for notebook, topics in required_topics.items():
         assert notebook in notebooks
@@ -59,3 +60,12 @@ def test_readme_routes_all_curriculum_stages() -> None:
         assert notebook_number in readme
     for stage in ("阶段 1", "阶段 2", "阶段 3", "阶段 4", "完成标准"):
         assert stage in readme
+
+
+def test_readme_defines_canonical_learning_path_and_categories() -> None:
+    readme = (ROOT / "pytorch/README.md").read_text()
+    expected_path = ("01 -> 02 -> 25 -> 03 -> 29 -> 06 -> 04 -> 18 -> 05 -> 15 -> 22", "11 -> 14 -> 26")
+    assert all(fragment in readme for fragment in expected_path)
+    for category in ("参考索引", "基础机制", "模型结构", "训练工程", "部署与系统", "综合项目"):
+        assert category in readme
+    assert "不属于必读主线" in readme
