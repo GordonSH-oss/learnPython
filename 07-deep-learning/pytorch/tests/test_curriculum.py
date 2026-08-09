@@ -51,3 +51,11 @@ def test_fundamentals_do_not_import_torch() -> None:
     for path in (ROOT / "fundamentals").glob("*"):
         if path.suffix in {".py", ".md"}:
             assert "import torch" not in path.read_text().lower()
+
+
+def test_readme_routes_all_curriculum_stages() -> None:
+    readme = (ROOT / "pytorch/README.md").read_text()
+    for notebook_number in ("01", "06", "14", "16", "20", "25", "27", "28"):
+        assert notebook_number in readme
+    for stage in ("阶段 1", "阶段 2", "阶段 3", "阶段 4", "完成标准"):
+        assert stage in readme

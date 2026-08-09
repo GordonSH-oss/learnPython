@@ -13,23 +13,69 @@ jupyter lab 07-deep-learning/pytorch/notebooks
 
 首次使用 MNIST、CIFAR-10 或预训练 ResNet 时需要网络。数据保存在 `data/`，检查点和导出模型保存在 `artifacts/`，两者都不会提交到 Git。
 
-## 课程路线
+## 如何使用课程
 
-| 课程 | 核心问题 | 对应实现 |
+不要按照编号机械地一次学完 29 个 Notebook。建议按以下四个阶段学习，每个阶段完成验收后再继续。
+
+### 阶段 1：PyTorch 核心基础（必修）
+
+| Notebook | 核心能力 | 阶段产出 |
 | --- | --- | --- |
-| 01 张量与设备 | shape、dtype、广播、CPU/CUDA/MPS | `common/runtime.py` |
-| 02 自动微分 | 计算图、叶子张量、梯度累积 | Notebook |
-| 03 神经网络 | 模块、参数、logits | `common/models.py` |
-| 04 数据加载 | 数据划分、批次、增强 | `common/data.py` |
-| 05 训练与验证 | 模式、指标、检查点 | `common/engine.py`、`common/checkpoint.py` |
-| 06 线性回归 | 损失和梯度下降 | `examples/linear_regression.py` |
-| 07 CNN MNIST | 卷积形状和分类训练 | `examples/train_image_classifier.py` |
-| 08 正则化 | Dropout、AdamW、增强、早停 | 图像训练示例 |
-| 09 迁移学习 | 冻结、替换分类头、解冻 | `examples/transfer_learning.py` |
-| 10 RNN/LSTM | 时间步与隐藏状态 | `examples/rnn_sequences.py` |
-| 11 Attention | Q/K/V、缩放和 mask | `examples/attention_demo.py` |
-| 12 混合精度 | autocast、梯度缩放、CUDA 条件执行 | `examples/mixed_precision.py` |
-| 13 模型导出 | TorchScript 与输出一致性 | `examples/export_model.py` |
+| 01 张量与设备 | shape、dtype、广播、view、device | 能预测常见 Tensor 操作结果 |
+| 02 自动微分 | 计算图、叶子节点、梯度累积 | 能解释和检查简单梯度 |
+| 03 神经网络 | Module、参数注册、logits、buffer | 能独立定义两层模型 |
+| 04 数据加载 | Dataset、DataLoader、数据划分 | 能构建训练/验证数据管道 |
+| 05 训练与验证 | train/eval、指标、checkpoint | 能写完整训练验证循环 |
+| 06 线性回归 | 参数更新和损失曲线 | 完成第一个可恢复训练任务 |
+
+阶段验收：独立完成一个合成数据分类任务，包含 Dataset、模型、训练、验证、最佳 checkpoint 和推理。
+
+### 阶段 2：模型与项目实践（必修一条，其他选修）
+
+| Notebook | 方向 | 建议 |
+| --- | --- | --- |
+| 07、08、16 | CNN、正则化、图像分类项目 | 计算机视觉主线必修 |
+| 09 | 迁移学习 | 图像方向进阶 |
+| 10 | RNN/LSTM | 序列模型基础 |
+| 11、14 | Attention、Transformer Encoder | NLP/Transformer 主线必修 |
+| 26 | Decoder-only Transformer 与生成 | 生成模型进阶 |
+
+阶段验收：完成 CNN 图像分类或 Transformer 文本分类项目，提交训练曲线、测试指标、错误样本和推理示例。
+
+### 阶段 3：训练与工程能力（推荐必修）
+
+| Notebook | 核心能力 |
+| --- | --- |
+| 12、21、22 | AMP、Profiler、梯度累积与裁剪 |
+| 15 | shape、dtype、device、梯度和 loss 调试 |
+| 17、18 | 评估指标、推理、预处理和数据泄漏 |
+| 19、20 | 实验配置、日志和测试 |
+| 23 | 阅读与修改 PyTorch 项目代码 |
+| 13、24 | 模型导出与部署契约 |
+
+阶段验收：从 checkpoint 恢复训练，定位一个人为制造的训练问题，并为模型编写 shape、参数更新和保存加载测试。
+
+### 阶段 4：PyTorch 进阶机制（按需学习）
+
+| Notebook | 核心能力 | 环境要求 |
+| --- | --- | --- |
+| 25 | 自定义 Autograd、`gradcheck` | CPU 可完成 |
+| 27 | DDP、rank、world size、DistributedSampler | 多进程/多 GPU 环境完成全部练习 |
+| 28 | `torch.compile`、graph break | PyTorch 2.x |
+
+`00-prerequites.ipynb` 是工具索引，不属于线性学习主线。需要查询 NumPy、Pandas、torchvision、Hugging Face、LoRA 或其他生态工具时再阅读对应章节。
+
+## 完成标准
+
+完成 Notebook 不等于掌握。满足以下条件后，可以认为具备较扎实的 PyTorch 中级工程能力：
+
+1. 不复制完整模板，独立完成一个真实数据项目。
+2. 能解释模型中主要 Tensor 的 shape 和 device。
+3. 能实现训练、验证、测试、checkpoint、恢复训练和推理。
+4. 能通过小 batch 过拟合、梯度检查和有限值检查定位训练问题。
+5. 能比较至少两组实验并保存配置、指标和模型版本。
+6. 能阅读一个新的 PyTorch 项目，找到数据、模型、loss、优化器和训练入口。
+7. 遇到陌生 API 时能阅读官方文档并写最小验证代码。
 
 ## 常用命令
 
